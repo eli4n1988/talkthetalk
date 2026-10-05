@@ -7,7 +7,7 @@ import {
   Loader2,
   Mic,
   MicOff,
-  Square,
+  PhoneOff,
   Volume2,
   VolumeX,
 } from "lucide-react";
@@ -41,13 +41,7 @@ import type {
 } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-type SessionStatus =
-  | "booting"
-  | "ready"
-  | "listening"
-  | "thinking"
-  | "speaking"
-  | "ended";
+type SessionStatus = "ready" | "listening" | "thinking" | "speaking" | "ended";
 
 const ERROR_COPY: Record<MicErrorCode, { title: string; body: string }> = {
   "permission-denied": {
@@ -83,7 +77,7 @@ export function PracticeSession({
   scenario: Scenario;
   persona: Persona;
 }) {
-  const [status, setStatus] = useState<SessionStatus>("booting");
+  const [status, setStatus] = useState<SessionStatus>("ready");
   const [turns, setTurns] = useState<TranscriptTurn[]>(() => [
     {
       id: "doctor-opening",
@@ -117,18 +111,25 @@ export function PracticeSession({
 
   const speakDoctor = useCallback(
     async (text: string) => {
-      setStatus("speaking");
+      setStatus((current) => (current === "ended" ? current : "speaking"));
       const result = await speakHebrew({
         text,
         rate: persona.voice.rate,
         pitch: persona.voice.pitch,
         gender: persona.gender,
       });
+      if (endedRef.current) return;
       if (!result.hebrewVoice) {
         setSupport((current) => ({ ...current, hebrewVoice: false }));
-        setError((current) => current ?? "no-hebrew-voice");
+        setError((current) =>
+          current && current !== "no-hebrew-voice" ? current : "no-hebrew-voice",
+        );
       }
-      setStatus("ready");
+      setStatus((current) =>
+        current === "ended" || current === "listening" || current === "thinking"
+          ? current
+          : "ready",
+      );
     },
     [persona.gender, persona.voice.pitch, persona.voice.rate],
   );
@@ -203,7 +204,7 @@ export function PracticeSession({
   }, [status]);
 
   const startListening = useCallback(async () => {
-    if (status === "thinking" || status === "speaking" || status === "ended") {
+    if (status === "thinking" || status === "ended") {
       return;
     }
     const Recognition = getSpeechRecognitionConstructor();
@@ -286,8 +287,6 @@ export function PracticeSession({
   }, [scenario]);
 
   useEffect(() => {
-    let cancelled = false;
-
     const onVoices = () => {
       const detected = getSpeechSupport();
       setSupport(detected);
@@ -298,13 +297,11 @@ export function PracticeSession({
     void (async () => {
       onVoices();
       await speakDoctor(scenario.openingLine);
-      if (!cancelled) setStatus("ready");
     })();
 
     window.speechSynthesis?.addEventListener("voiceschanged", onVoices);
 
     return () => {
-      cancelled = true;
       recognitionRef.current?.abort();
       stopSpeaking();
       window.speechSynthesis?.removeEventListener("voiceschanged", onVoices);
@@ -315,8 +312,6 @@ export function PracticeSession({
 
   const statusLabel = useMemo(() => {
     switch (status) {
-      case "booting":
-        return "טוען את הרופא…";
       case "listening":
         return "מאזינים לכם";
       case "thinking":
@@ -330,7 +325,7 @@ export function PracticeSession({
     }
   }, [status]);
 
-  const busy = status === "thinking" || status === "speaking" || status === "booting";
+  const busy = status === "thinking";
 
   return (
     <div className="flex flex-col gap-5 pb-28 lg:pb-6">
@@ -350,8 +345,13 @@ export function PracticeSession({
           </div>
         </div>
         {status !== "ended" ? (
-          <Button variant="outline" onClick={endSession} className="self-start">
-            <Square className="size-3.5" />
+          <Button
+            type="button"
+            variant="outline"
+            onClick={endSession}
+            className="self-start"
+          >
+            <PhoneOff className="size-3.5" />
             סיום שיחה
           </Button>
         ) : (
@@ -392,22 +392,27 @@ export function PracticeSession({
           ) : null}
 
           {status !== "ended" ? (
-            <div className="hidden gap-3 rounded-xl border bg-card p-3 lg:flex lg:flex-col">
-              <Controls
-                status={status}
-                busy={busy}
-                support={support}
-                showKeyboard={showKeyboard}
-                typed={typed}
-                sampleLines={scenario.sampleLines}
-                onStartListening={() => void startListening()}
-                onStopListening={stopListening}
-                onToggleKeyboard={() => setShowKeyboard((value) => !value)}
-                onTypedChange={setTyped}
-                onSubmitTyped={() => void submitManagerText(typed)}
+            <div className="flex flex-col gap-3">
+              <SampleLines
+                lines={scenario.sampleLines}
+                disabled={busy}
                 onSample={(line) => void submitManagerText(line)}
-                onStopSpeech={stopSpeaking}
               />
+              <div className="hidden rounded-xl border bg-card p-3 lg:block">
+                <Controls
+                  status={status}
+                  busy={busy}
+                  support={support}
+                  showKeyboard={showKeyboard}
+                  typed={typed}
+                  onStartListening={() => void startListening()}
+                  onStopListening={stopListening}
+                  onToggleKeyboard={() => setShowKeyboard((value) => !value)}
+                  onTypedChange={setTyped}
+                  onSubmitTyped={() => void submitManagerText(typed)}
+                  onStopSpeech={stopSpeaking}
+                />
+              </div>
             </div>
           ) : null}
         </div>
@@ -452,24 +457,52 @@ export function PracticeSession({
       {status === "ended" && debrief ? <DebriefPanel notes={debrief} /> : null}
 
       {status !== "ended" ? (
-        <div className="fixed inset-x-0 bottom-0 z-20 border-t bg-card/95 p-3 backdrop-blur lg:hidden">
+        <div className="fixed inset-x-0 bottom-0 z-20 border-t bg-card/95 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur lg:hidden">
           <Controls
             status={status}
             busy={busy}
             support={support}
             showKeyboard={showKeyboard}
             typed={typed}
-            sampleLines={scenario.sampleLines}
             onStartListening={() => void startListening()}
             onStopListening={stopListening}
             onToggleKeyboard={() => setShowKeyboard((value) => !value)}
             onTypedChange={setTyped}
             onSubmitTyped={() => void submitManagerText(typed)}
-            onSample={(line) => void submitManagerText(line)}
             onStopSpeech={stopSpeaking}
           />
         </div>
       ) : null}
+    </div>
+  );
+}
+
+function SampleLines({
+  lines,
+  disabled,
+  onSample,
+}: {
+  lines: string[];
+  disabled: boolean;
+  onSample: (line: string) => void;
+}) {
+  return (
+    <div className="flex flex-col gap-2 rounded-xl border bg-card p-3">
+      <p className="text-sm font-medium">אין מיקרופון? שלחו משפט אימון מוכן</p>
+      <div className="flex flex-col gap-2">
+        {lines.map((line) => (
+          <Button
+            key={line}
+            type="button"
+            variant="secondary"
+            disabled={disabled}
+            onClick={() => onSample(line)}
+            className="h-auto min-h-11 w-full justify-start whitespace-normal py-2 text-start leading-6"
+          >
+            {line}
+          </Button>
+        ))}
+      </div>
     </div>
   );
 }
@@ -480,13 +513,11 @@ function Controls({
   support,
   showKeyboard,
   typed,
-  sampleLines,
   onStartListening,
   onStopListening,
   onToggleKeyboard,
   onTypedChange,
   onSubmitTyped,
-  onSample,
   onStopSpeech,
 }: {
   status: SessionStatus;
@@ -494,13 +525,11 @@ function Controls({
   support: { recognition: boolean; synthesis: boolean; hebrewVoice: boolean };
   showKeyboard: boolean;
   typed: string;
-  sampleLines: string[];
   onStartListening: () => void;
   onStopListening: () => void;
   onToggleKeyboard: () => void;
   onTypedChange: (value: string) => void;
   onSubmitTyped: () => void;
-  onSample: (line: string) => void;
   onStopSpeech: () => void;
 }) {
   const listening = status === "listening";
@@ -510,6 +539,7 @@ function Controls({
       <div className="flex flex-wrap items-center gap-2">
         {listening ? (
           <Button
+            type="button"
             size="lg"
             variant="destructive"
             onClick={onStopListening}
@@ -520,6 +550,7 @@ function Controls({
           </Button>
         ) : (
           <Button
+            type="button"
             size="lg"
             onClick={onStartListening}
             disabled={busy || !support.recognition}
@@ -530,6 +561,7 @@ function Controls({
           </Button>
         )}
         <Button
+          type="button"
           size="lg"
           variant="outline"
           onClick={onToggleKeyboard}
@@ -539,7 +571,13 @@ function Controls({
           הקלדה
         </Button>
         {status === "speaking" ? (
-          <Button size="lg" variant="ghost" onClick={onStopSpeech} className="min-h-11">
+          <Button
+            type="button"
+            size="lg"
+            variant="ghost"
+            onClick={onStopSpeech}
+            className="min-h-11"
+          >
             <VolumeX className="size-4" />
             השתקת קול
           </Button>
@@ -561,26 +599,14 @@ function Controls({
             className="min-h-20"
             dir="rtl"
           />
-          <div className="flex flex-wrap gap-2">
-            <Button
-              onClick={onSubmitTyped}
-              disabled={busy || typed.trim().length === 0}
-            >
-              שליחת תור
-            </Button>
-            {sampleLines.map((line) => (
-              <Button
-                key={line}
-                variant="outline"
-                size="sm"
-                disabled={busy}
-                onClick={() => onSample(line)}
-                className="max-w-full whitespace-normal text-start leading-5"
-              >
-                {line}
-              </Button>
-            ))}
-          </div>
+          <Button
+            type="button"
+            onClick={onSubmitTyped}
+            disabled={busy || typed.trim().length === 0}
+            className="min-h-11 self-start"
+          >
+            שליחת תור
+          </Button>
         </div>
       ) : null}
     </div>

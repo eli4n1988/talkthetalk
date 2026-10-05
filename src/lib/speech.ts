@@ -58,13 +58,38 @@ export function speakHebrew(args: {
   gender: "male" | "female";
 }): Promise<{ spoke: boolean; hebrewVoice: boolean }> {
   return new Promise((resolve) => {
+    let settled = false;
+    const finish = (result: { spoke: boolean; hebrewVoice: boolean }) => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(watchdog);
+      resolve(result);
+    };
+
+    const watchdog = window.setTimeout(() => {
+      try {
+        window.speechSynthesis?.cancel();
+      } catch {
+        /* ignore */
+      }
+      finish({
+        spoke: false,
+        hebrewVoice: Boolean(findHebrewVoice(args.gender)),
+      });
+    }, 4000);
+
     if (typeof window === "undefined" || !window.speechSynthesis) {
-      resolve({ spoke: false, hebrewVoice: false });
+      finish({ spoke: false, hebrewVoice: false });
       return;
     }
 
     const synth = window.speechSynthesis;
-    synth.cancel();
+    try {
+      synth.cancel();
+    } catch {
+      finish({ spoke: false, hebrewVoice: false });
+      return;
+    }
 
     const run = () => {
       const voice = findHebrewVoice(args.gender);
@@ -73,12 +98,16 @@ export function speakHebrew(args: {
       utterance.rate = args.rate;
       utterance.pitch = args.pitch;
       if (voice) utterance.voice = voice;
-
       utterance.onend = () =>
-        resolve({ spoke: true, hebrewVoice: Boolean(voice) });
+        finish({ spoke: true, hebrewVoice: Boolean(voice) });
       utterance.onerror = () =>
-        resolve({ spoke: false, hebrewVoice: Boolean(voice) });
-      synth.speak(utterance);
+        finish({ spoke: false, hebrewVoice: Boolean(voice) });
+      try {
+        synth.speak(utterance);
+        if (synth.paused) synth.resume();
+      } catch {
+        finish({ spoke: false, hebrewVoice: Boolean(voice) });
+      }
     };
 
     if (synth.getVoices().length === 0) {
@@ -89,8 +118,8 @@ export function speakHebrew(args: {
       synth.addEventListener("voiceschanged", handle);
       window.setTimeout(() => {
         synth.removeEventListener("voiceschanged", handle);
-        run();
-      }, 700);
+        if (!settled) run();
+      }, 400);
       return;
     }
 
