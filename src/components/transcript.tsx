@@ -32,7 +32,7 @@ export function Transcript({
   }
 
   return (
-    <ScrollArea className="h-[min(28rem,58vh)] rounded-xl border bg-card">
+    <ScrollArea className="h-[min(20rem,42vh)] rounded-xl border bg-card">
       <div
         className="flex flex-col gap-3 p-4"
         aria-live="polite"

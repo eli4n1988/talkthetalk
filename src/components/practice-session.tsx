@@ -89,11 +89,11 @@ export function PracticeSession({
   const [interim, setInterim] = useState("");
   const [typed, setTyped] = useState("");
   const [error, setError] = useState<MicErrorCode | null>(null);
-  const [support, setSupport] = useState(() =>
-    typeof window === "undefined"
-      ? { recognition: false, synthesis: false, hebrewVoice: false }
-      : getSpeechSupport(),
-  );
+  const [support, setSupport] = useState({
+    recognition: false,
+    synthesis: false,
+    hebrewVoice: false,
+  });
   const [debrief, setDebrief] = useState<DebriefNotes | null>(null);
   const [showKeyboard, setShowKeyboard] = useState(true);
 
@@ -328,7 +328,7 @@ export function PracticeSession({
   const busy = status === "thinking";
 
   return (
-    <div className="flex flex-col gap-5 pb-28 lg:pb-6">
+    <div className="flex flex-col gap-5 pb-36 lg:pb-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex flex-col gap-2">
           <Link
@@ -491,16 +491,19 @@ function SampleLines({
       <p className="text-sm font-medium">אין מיקרופון? שלחו משפט אימון מוכן</p>
       <div className="flex flex-col gap-2">
         {lines.map((line) => (
-          <Button
+          <button
             key={line}
             type="button"
-            variant="secondary"
+            data-testid="sample-line"
             disabled={disabled}
             onClick={() => onSample(line)}
-            className="h-auto min-h-11 w-full justify-start whitespace-normal py-2 text-start leading-6"
+            className={cn(
+              buttonVariants({ variant: "secondary" }),
+              "h-auto min-h-11 w-full scroll-mb-40 justify-start whitespace-normal py-2 text-start leading-6",
+            )}
           >
             {line}
-          </Button>
+          </button>
         ))}
       </div>
     </div>
