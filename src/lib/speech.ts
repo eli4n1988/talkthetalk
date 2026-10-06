@@ -328,7 +328,8 @@ export async function speakDoctorLine(args: SpeakArgs & { personaId: string }): 
   const startedAt = ++speakGeneration;
   let neural = false;
   let provider: "gemini" | "openai" | undefined;
-  let pending = fetchDoctorVoiceChunk(chunks[0], args.personaId);
+  let pending: Promise<{ blob: Blob; provider: "gemini" | "openai" } | null> | null =
+    fetchDoctorVoiceChunk(chunks[0], args.personaId);
 
   for (let index = 0; index < chunks.length; index += 1) {
     if (speakGeneration !== startedAt) {
@@ -338,7 +339,7 @@ export async function speakDoctorLine(args: SpeakArgs & { personaId: string }): 
       index + 1 < chunks.length
         ? fetchDoctorVoiceChunk(chunks[index + 1], args.personaId)
         : null;
-    const clip = await pending;
+    const clip = pending ? await pending : null;
     pending = next;
     if (speakGeneration !== startedAt) {
       return { spoke: neural, hebrewVoice: neural, neural, provider };
