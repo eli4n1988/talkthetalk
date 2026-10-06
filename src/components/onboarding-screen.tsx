@@ -55,13 +55,13 @@ export function OnboardingScreen({
   const editing = Boolean(initial);
 
   return (
-    <div className="mx-auto flex w-full max-w-xl flex-1 flex-col justify-center py-4">
+    <div className="mx-auto flex w-full max-w-xl min-w-0 flex-1 flex-col justify-center py-1 sm:py-4">
       <Card className="bg-white shadow-none ring-border">
         <CardHeader className="border-b border-border">
           <p className="text-sm font-medium text-primary">
             {editing ? "עדכון פרטים" : "כניסה לאימון"}
           </p>
-          <CardTitle className="text-2xl font-semibold leading-snug">
+          <CardTitle className="text-xl font-semibold leading-snug sm:text-2xl">
             {editing ? "שינוי שם, מין או מחוז" : "לפני שנכנסים לחדר"}
           </CardTitle>
           <CardDescription className="text-start text-[15px] leading-7">
@@ -77,7 +77,7 @@ export function OnboardingScreen({
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit} data-testid="onboarding-form">
-          <CardContent className="flex flex-col gap-7 pt-6">
+          <CardContent className="flex flex-col gap-5 pt-5 sm:gap-7 sm:pt-6">
             <div className="flex flex-col gap-2">
               <Label htmlFor="manager-name">שם</Label>
               <Input
@@ -189,7 +189,7 @@ function ChoiceButton({
       aria-pressed={active}
       data-testid={testId}
       className={cn(
-        "rounded-xl border px-3 py-3 text-start transition-all",
+        "rounded-xl border px-3 py-3 text-start transition-all min-h-11",
         active
           ? "border-primary bg-secondary text-primary shadow-sm"
           : "border-border bg-white hover:-translate-y-0.5 hover:border-primary/40",

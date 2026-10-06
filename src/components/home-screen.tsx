@@ -22,13 +22,13 @@ export function HomeScreen() {
   }
 
   return (
-    <div className="flex flex-col gap-10">
-      <section className="hero-banner relative overflow-hidden rounded-3xl border border-border px-6 py-10 sm:px-10 sm:py-12">
+    <div className="flex flex-col gap-6 sm:gap-10">
+      <section className="hero-banner relative overflow-hidden rounded-2xl border border-border px-4 py-6 sm:rounded-3xl sm:px-10 sm:py-12">
         <p className="stagger-in text-sm font-medium text-primary">
           {managerRoleLabel(profile.gender)} · מחוז {districtLabel(profile.district)}
         </p>
         <h1
-          className="stagger-in mt-3 max-w-3xl text-3xl font-semibold leading-snug text-balance sm:text-[2.15rem]"
+          className="stagger-in mt-3 max-w-3xl text-2xl font-semibold leading-snug text-balance sm:text-[2.15rem]"
           style={{ animationDelay: "80ms" }}
         >
           שלום {profile.name}, בחרו תרחיש לשיחת אימון.

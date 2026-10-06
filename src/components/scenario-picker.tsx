@@ -115,7 +115,7 @@ export function ScenarioPicker() {
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="חיפוש לפי מתח, רופא או מרפאה"
-              className="h-9 pr-9 transition-shadow focus-visible:shadow-md"
+              className="h-11 pr-9 text-base transition-shadow focus-visible:shadow-md md:h-9 md:text-sm"
               aria-label="חיפוש תרחישים"
             />
           </div>
@@ -245,7 +245,7 @@ function FilterChip({
       variant={active ? "default" : "outline"}
       onClick={onClick}
       className={cn(
-        "rounded-full transition-all",
+        "min-h-9 rounded-full px-3 transition-all",
         active ? "shadow-sm" : "hover:-translate-y-0.5 hover:border-primary/40",
       )}
     >

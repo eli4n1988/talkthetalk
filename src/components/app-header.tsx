@@ -8,9 +8,9 @@ export function AppHeader() {
   const showNav = ready && Boolean(profile);
 
   return (
-    <header className="sticky top-0 z-30 border-b border-border bg-white/90 backdrop-blur-md">
+    <header className="sticky top-0 z-30 border-b border-border bg-white/90 pt-[env(safe-area-inset-top)] backdrop-blur-md">
       <div className="h-1 w-full bg-header-bar" />
-      <div className="mx-auto grid w-full max-w-6xl grid-cols-1 items-center justify-items-center gap-2 px-5 py-3.5 sm:grid-cols-[1fr_auto_1fr] sm:gap-4 sm:px-8 sm:py-4">
+      <div className="mx-auto grid w-full max-w-6xl grid-cols-1 items-center justify-items-center gap-1.5 px-4 py-2.5 sm:grid-cols-[1fr_auto_1fr] sm:gap-4 sm:px-8 sm:py-4">
         <Link
           href="/"
           className="flex min-w-0 flex-col items-center text-center sm:col-start-2"
@@ -18,8 +18,8 @@ export function AppHeader() {
           <span className="font-heading text-2xl font-bold tracking-tight text-primary sm:text-3xl">
             TalktheTalk
           </span>
-          <span className="mt-1.5 h-0.5 w-10 bg-primary/50" aria-hidden />
-          <span className="mt-2 text-sm font-semibold leading-snug text-primary sm:text-base">
+          <span className="mt-1 h-0.5 w-10 bg-primary/50" aria-hidden />
+          <span className="mt-1.5 text-sm font-semibold leading-snug text-primary sm:mt-2 sm:text-base">
             סימולצית שיחה למנהלים רפואיים
           </span>
         </Link>
@@ -36,7 +36,7 @@ export function AppHeader() {
           <span className="sm:col-start-3" aria-hidden />
         )}
       </div>
-      <p className="border-t border-border/70 px-4 py-2 text-center text-[11px] leading-5 text-foreground/70 sm:px-8 sm:text-xs sm:leading-5">
+      <p className="border-t border-border/70 px-3 py-1.5 text-center text-[11px] leading-4 text-pretty text-foreground/70 sm:px-8 sm:py-2 sm:text-xs sm:leading-5">
         המערכת פותחה על ידי ד״ר אלי קבקוב — רופא נשים ומנהל רפואי במרחב גבעות
         השרון, מחוז השרון
         <span className="mt-0.5 block sm:mt-0 sm:inline">

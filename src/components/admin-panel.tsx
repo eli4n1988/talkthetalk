@@ -149,7 +149,7 @@ export function AdminPanel() {
     <div className="flex flex-col gap-8">
       <section className="flex flex-col gap-3 border-b border-border pb-8">
         <p className="text-sm font-medium text-primary">ניהול תרחישים</p>
-        <h1 className="text-3xl font-semibold">התאימו את חדר האימון למרפאה שלכם</h1>
+          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">התאימו את חדר האימון למרפאה שלכם</h1>
         <p className="max-w-2xl text-sm leading-7 text-muted-foreground">
           כאן עורכים כל תרחיש, מחליפים רופא (גבר/אישה, ותיק/צעיר), ומוסיפים
           שיחות חדשות. השינויים נשמרים בדפדפן זה בלבד — בלי שרת ובלי סיסמה.{" "}

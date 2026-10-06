@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Heebo } from "next/font/google";
 import { AppHeader } from "@/components/app-header";
 import { ProfileGate } from "@/components/profile-gate";
@@ -9,6 +9,13 @@ const heebo = Heebo({
   subsets: ["hebrew", "latin"],
   variable: "--font-heebo",
 });
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#083F92",
+};
 
 export const metadata: Metadata = {
   title: "TalktheTalk | אימון שיחות עם רופאים | מכבי",
@@ -22,7 +29,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="flex min-h-full flex-col bg-background">
         <Providers>
           <AppHeader />
-          <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-5 py-8 sm:px-8 sm:py-10">
+          <main className="mx-auto flex w-full max-w-6xl min-w-0 flex-1 flex-col px-4 py-5 sm:px-8 sm:py-10">
             <ProfileGate>{children}</ProfileGate>
           </main>
         </Providers>

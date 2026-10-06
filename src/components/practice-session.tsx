@@ -442,7 +442,7 @@ export function PracticeSession({
   }, []);
 
   return (
-    <div className="flex flex-col gap-5 pb-40 lg:pb-6">
+    <div className="flex min-w-0 flex-col gap-5 pb-40 lg:pb-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex flex-col gap-2">
           <Link
@@ -491,7 +491,7 @@ export function PracticeSession({
       />
 
       <Card className="mx-auto w-full bg-white ring-border shadow-none">
-        <CardContent className="px-6 py-5 text-center sm:px-10">
+        <CardContent className="px-4 py-5 text-center sm:px-10">
           <p className="text-base leading-7">{scenario.tension}</p>
           {scenario.clinicNote ? (
             <p className="mt-2 text-sm leading-6 text-muted-foreground">
@@ -654,9 +654,9 @@ function VoiceStage({
   const listening = status === "listening";
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-border bg-hero-panel p-5 text-white shadow-sm">
+    <div className="overflow-hidden rounded-2xl border border-border bg-hero-panel p-4 text-white shadow-sm sm:p-5">
       <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-4">
+        <div className="flex w-full min-w-0 items-center gap-4 sm:w-auto">
           <div
             className={cn(
               "relative size-24 shrink-0 rounded-full",
@@ -681,7 +681,7 @@ function VoiceStage({
           </div>
         </div>
         <Waveform active={speaking || listening} listening={listening} />
-        <div className="flex max-w-xs flex-col items-center gap-2 sm:items-end">
+        <div className="flex w-full max-w-xs flex-col items-center gap-2 sm:w-auto sm:items-end">
           <TalkButton
             listening={listening}
             disabled={talkDisabled}
@@ -777,7 +777,7 @@ function TalkButton({
         onClick={onStop}
         data-testid="talk-button"
         className={cn(
-          "min-h-11 flex-1 sm:flex-none",
+          "min-h-11 w-full sm:w-auto sm:flex-none",
           prominent &&
             "min-h-12 flex-none bg-white px-5 text-base font-semibold text-destructive hover:bg-white/90",
         )}
@@ -796,7 +796,7 @@ function TalkButton({
       disabled={disabled}
       data-testid="talk-button"
       className={cn(
-        "mic-cta min-h-11 flex-1 sm:flex-none",
+        "mic-cta min-h-11 w-full sm:w-auto sm:flex-none",
         prominent &&
           "min-h-12 flex-none bg-white px-5 text-base font-semibold text-primary shadow-lg hover:bg-white/90",
       )}
