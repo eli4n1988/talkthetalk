@@ -4,7 +4,7 @@ import {
   generateDoctorReplyByScenarioId,
   generateOpening,
 } from "@/lib/dialogue";
-import { getPersona } from "@/lib/content";
+import { getPersona, getScenario } from "@/lib/content";
 import type {
   DialogueState,
   DoctorTurnResult,
@@ -27,7 +27,7 @@ type RequestBody = {
 
 export async function POST(request: Request) {
   const body = (await request.json()) as RequestBody;
-  const scenario = body.scenario;
+  const scenario = body.scenario ?? getScenario(body.scenarioId);
   const kind = body.kind === "opening" ? "opening" : "turn";
   const history = body.history ?? [];
   const persona =
