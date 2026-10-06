@@ -24,8 +24,7 @@ export function Transcript({
     return (
       <div className="flex min-h-56 flex-1 items-center justify-center rounded-lg border border-dashed border-border bg-white px-6 py-12 text-center">
         <p className="max-w-sm text-sm leading-6 text-muted-foreground">
-          התמליל יופיע כאן. התחילו במיקרופון, או כתבו תור בעברית אם אין מיקרופון
-          במכשיר.
+          התמליל יופיע כאן. לחצו «לחצו כדי לדבר» כשמוכנים, או כתבו תור בעברית.
         </p>
       </div>
     );

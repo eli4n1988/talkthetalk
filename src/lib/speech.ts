@@ -108,7 +108,7 @@ export async function waitForVoices(): Promise<void> {
   });
 }
 
-function chunkSpeechText(text: string): string[] {
+function chunkSpeechText(text: string, maxLen = 220): string[] {
   const trimmed = text.replace(/\s+/g, " ").trim();
   if (!trimmed) return [];
   const sentences = trimmed
@@ -118,14 +118,14 @@ function chunkSpeechText(text: string): string[] {
   const source = sentences.length > 0 ? sentences : [trimmed];
   const chunks: string[] = [];
   for (const piece of source) {
-    if (piece.length <= 220) {
+    if (piece.length <= maxLen) {
       chunks.push(piece);
       continue;
     }
     const parts = piece.split(/(?<=[,;،])\s+/);
     let buffer = "";
     for (const part of parts) {
-      if (`${buffer} ${part}`.trim().length > 220 && buffer) {
+      if (`${buffer} ${part}`.trim().length > maxLen && buffer) {
         chunks.push(buffer.trim());
         buffer = part;
       } else {
@@ -282,8 +282,8 @@ export function stopSpeaking() {
   if (window.speechSynthesis) window.speechSynthesis.cancel();
 }
 
-export function playNeuralAudio(blob: Blob): Promise<boolean> {
-  const myGen = ++speakGeneration;
+export function playNeuralAudio(blob: Blob, generation?: number): Promise<boolean> {
+  const myGen = generation ?? ++speakGeneration;
   return new Promise((resolve) => {
     if (typeof window === "undefined") {
       resolve(false);
@@ -320,33 +320,70 @@ export async function speakDoctorLine(args: SpeakArgs & { personaId: string }): 
   neural: boolean;
   provider?: "gemini" | "openai";
 }> {
+  const chunks = chunkSpeechText(args.text, 110);
+  if (chunks.length === 0) {
+    return { spoke: false, hebrewVoice: false, neural: false };
+  }
+
+  const startedAt = ++speakGeneration;
+  let neural = false;
+  let provider: "gemini" | "openai" | undefined;
+  let pending = fetchDoctorVoiceChunk(chunks[0], args.personaId);
+
+  for (let index = 0; index < chunks.length; index += 1) {
+    if (speakGeneration !== startedAt) {
+      return { spoke: neural, hebrewVoice: neural, neural, provider };
+    }
+    const next =
+      index + 1 < chunks.length
+        ? fetchDoctorVoiceChunk(chunks[index + 1], args.personaId)
+        : null;
+    const clip = await pending;
+    pending = next;
+    if (speakGeneration !== startedAt) {
+      return { spoke: neural, hebrewVoice: neural, neural, provider };
+    }
+    if (clip) {
+      neural = true;
+      provider = clip.provider;
+      const played = await playNeuralAudio(clip.blob, startedAt);
+      if (!played) {
+        return { spoke: true, hebrewVoice: true, neural: true, provider };
+      }
+      continue;
+    }
+    const rest = chunks.slice(index).join(" ");
+    const browser = await speakHebrew({ ...args, text: rest });
+    return {
+      spoke: neural || browser.spoke,
+      hebrewVoice: neural || browser.hebrewVoice,
+      neural,
+      provider,
+    };
+  }
+
+  return { spoke: true, hebrewVoice: true, neural, provider };
+}
+
+async function fetchDoctorVoiceChunk(
+  text: string,
+  personaId: string,
+): Promise<{ blob: Blob; provider: "gemini" | "openai" } | null> {
   try {
     const response = await fetch("/api/doctor-voice", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        text: args.text,
-        personaId: args.personaId,
-      }),
+      body: JSON.stringify({ text, personaId }),
     });
-    if (response.ok && response.status !== 204) {
-      const blob = await response.blob();
-      if (blob.size > 80) {
-        const played = await playNeuralAudio(blob);
-        if (played) {
-          const header = response.headers.get("X-Voice-Provider");
-          const provider =
-            header === "openai" || header === "gemini" ? header : "gemini";
-          return { spoke: true, hebrewVoice: true, neural: true, provider };
-        }
-      }
-    }
+    if (!response.ok || response.status === 204) return null;
+    const blob = await response.blob();
+    if (blob.size <= 80) return null;
+    const header = response.headers.get("X-Voice-Provider");
+    const provider = header === "openai" || header === "gemini" ? header : "gemini";
+    return { blob, provider };
   } catch {
-    /* fall through to browser speech */
+    return null;
   }
-
-  const browser = await speakHebrew(args);
-  return { ...browser, neural: false };
 }
 
 export async function requestMicAccess(): Promise<MicErrorCode | null> {

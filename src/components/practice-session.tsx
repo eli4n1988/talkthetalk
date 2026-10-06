@@ -104,7 +104,6 @@ export function PracticeSession({
   });
   const [debrief, setDebrief] = useState<DebriefNotes | null>(null);
   const [showKeyboard, setShowKeyboard] = useState(false);
-  const [autoListen, setAutoListen] = useState(true);
   const [lastManagerText, setLastManagerText] = useState("");
   const [signals, setSignals] = useState(() =>
     createDialogueState(scenario.firstMeeting).signals,
@@ -125,25 +124,12 @@ export function PracticeSession({
   const endedRef = useRef(false);
   const pendingFinalRef = useRef("");
   const turnCounter = useRef(0);
-  const autoListenRef = useRef(true);
-  const startListeningRef = useRef<() => Promise<void>>(async () => undefined);
   const statusRef = useRef<SessionStatus>("thinking");
   const turnsRef = useRef<TranscriptTurn[]>([]);
 
   const nextId = useCallback((role: TranscriptTurn["role"]) => {
     turnCounter.current += 1;
     return `${role}-${turnCounter.current}`;
-  }, []);
-
-  const queueListen = useCallback(() => {
-    window.setTimeout(() => {
-      if (endedRef.current) return;
-      if (!autoListenRef.current) {
-        setStatus((current) => (current === "ended" ? current : "ready"));
-        return;
-      }
-      void startListeningRef.current();
-    }, 280);
   }, []);
 
   const speakDoctor = useCallback(
@@ -170,17 +156,13 @@ export function PracticeSession({
           current && current !== "no-hebrew-voice" ? current : "no-hebrew-voice",
         );
       }
-      if (autoListenRef.current) {
-        queueListen();
-      } else {
-        setStatus((current) =>
-          current === "ended" || current === "listening" || current === "thinking"
-            ? current
-            : "ready",
-        );
-      }
+      setStatus((current) =>
+        current === "ended" || current === "listening" || current === "thinking"
+          ? current
+          : "ready",
+      );
     },
-    [persona, queueListen],
+    [persona],
   );
 
   const submitManagerText = useCallback(
@@ -242,6 +224,7 @@ export function PracticeSession({
       setSignals(result.state.signals);
       setPhase(result.state.phase);
       setBeat(result.state.beat);
+      const spoken = speakDoctor(result.reply);
       setTurns((current) => [
         ...current,
         {
@@ -251,7 +234,7 @@ export function PracticeSession({
           phase: result.state.phase,
         },
       ]);
-      await speakDoctor(result.reply);
+      await spoken;
     },
     [nextId, persona, scenario, speakDoctor],
   );
@@ -270,8 +253,6 @@ export function PracticeSession({
     if (!Recognition) {
       setError("no-recognition");
       setShowKeyboard(true);
-      setAutoListen(false);
-      autoListenRef.current = false;
       setStatus("ready");
       return;
     }
@@ -279,10 +260,6 @@ export function PracticeSession({
     if (permissionError) {
       setError(permissionError);
       setShowKeyboard(true);
-      if (permissionError === "permission-denied" || permissionError === "not-supported") {
-        setAutoListen(false);
-        autoListenRef.current = false;
-      }
       setStatus("ready");
       return;
     }
@@ -319,8 +296,6 @@ export function PracticeSession({
       setError(mapped);
       if (mapped === "permission-denied" || mapped === "no-recognition") {
         setShowKeyboard(true);
-        setAutoListen(false);
-        autoListenRef.current = false;
       }
     };
     recognition.onend = () => {
@@ -351,16 +326,8 @@ export function PracticeSession({
   }, [turns]);
 
   useEffect(() => {
-    startListeningRef.current = startListening;
-  }, [startListening]);
-
-  useEffect(() => {
     statusRef.current = status;
   }, [status]);
-
-  useEffect(() => {
-    autoListenRef.current = autoListen;
-  }, [autoListen]);
 
   const endSession = useCallback(() => {
     endedRef.current = true;
@@ -379,8 +346,6 @@ export function PracticeSession({
       if (!detected.recognition) {
         setError("no-recognition");
         setShowKeyboard(true);
-        setAutoListen(false);
-        autoListenRef.current = false;
       }
     };
 
@@ -412,6 +377,7 @@ export function PracticeSession({
       setSignals(result.state.signals);
       setPhase(result.state.phase);
       setBeat(result.state.beat);
+      const spoken = speakDoctor(result.reply);
       setTurns([
         {
           id: nextId("doctor"),
@@ -420,7 +386,7 @@ export function PracticeSession({
           phase: result.state.phase,
         },
       ]);
-      await speakDoctor(result.reply);
+      await spoken;
     })();
 
     window.speechSynthesis?.addEventListener("voiceschanged", onVoices);
@@ -445,14 +411,24 @@ export function PracticeSession({
       case "ended":
         return "השיחה הסתיימה";
       default:
-        return autoListen ? "ממתינים לתורכם" : "מוכנים לתור הבא";
+        return "המיקרופון סגור — לחצו כדי לדבר";
     }
-  }, [autoListen, status]);
+  }, [status]);
 
   const busy = status === "thinking";
+  const talkDisabled = busy || status === "ended" || !support.recognition;
   const wordCount = lastManagerText.trim()
     ? lastManagerText.trim().split(/\s+/).length
     : 0;
+
+  const handleStopSpeech = useCallback(() => {
+    stopSpeaking();
+    setStatus((current) =>
+      current === "ended" || current === "listening" || current === "thinking"
+        ? current
+        : "ready",
+    );
+  }, []);
 
   return (
     <div className="flex flex-col gap-5 pb-40 lg:pb-6">
@@ -498,12 +474,9 @@ export function PracticeSession({
       <VoiceStage
         persona={persona}
         status={status}
-        autoListen={autoListen}
-        onToggleAuto={() => {
-          const next = !autoListen;
-          setAutoListen(next);
-          autoListenRef.current = next;
-        }}
+        talkDisabled={talkDisabled}
+        onStartListening={() => void startListening()}
+        onStopListening={stopListening}
       />
 
       <Card className="mx-auto w-full bg-white ring-border shadow-none">
@@ -558,18 +531,14 @@ export function PracticeSession({
                   support={support}
                   showKeyboard={showKeyboard}
                   typed={typed}
-                  autoListen={autoListen}
                   neuralVoice={voiceSource !== "browser"}
+                  talkDisabled={talkDisabled}
                   onStartListening={() => void startListening()}
                   onStopListening={stopListening}
                   onToggleKeyboard={() => setShowKeyboard((value) => !value)}
                   onTypedChange={setTyped}
                   onSubmitTyped={() => void submitManagerText(typed)}
-                  onStopSpeech={() => {
-                    stopSpeaking();
-                    if (autoListenRef.current) queueListen();
-                    else setStatus("ready");
-                  }}
+                  onStopSpeech={handleStopSpeech}
                 />
               </div>
               {showKeyboard ? (
@@ -642,18 +611,14 @@ export function PracticeSession({
             support={support}
             showKeyboard={showKeyboard}
             typed={typed}
-            autoListen={autoListen}
             neuralVoice={voiceSource !== "browser"}
+            talkDisabled={talkDisabled}
             onStartListening={() => void startListening()}
             onStopListening={stopListening}
             onToggleKeyboard={() => setShowKeyboard((value) => !value)}
             onTypedChange={setTyped}
             onSubmitTyped={() => void submitManagerText(typed)}
-            onStopSpeech={() => {
-              stopSpeaking();
-              if (autoListenRef.current) queueListen();
-              else setStatus("ready");
-            }}
+            onStopSpeech={handleStopSpeech}
           />
         </div>
       ) : null}
@@ -664,13 +629,15 @@ export function PracticeSession({
 function VoiceStage({
   persona,
   status,
-  autoListen,
-  onToggleAuto,
+  talkDisabled,
+  onStartListening,
+  onStopListening,
 }: {
   persona: Persona;
   status: SessionStatus;
-  autoListen: boolean;
-  onToggleAuto: () => void;
+  talkDisabled: boolean;
+  onStartListening: () => void;
+  onStopListening: () => void;
 }) {
   const speaking = status === "speaking";
   const listening = status === "listening";
@@ -697,19 +664,26 @@ function VoiceStage({
                 ? "שומעים את הרופא"
                 : listening
                   ? "תורכם לדבר"
-                  : "שיחה קולית"}
+                  : "המיקרופון סגור"}
             </p>
             <p className="text-lg font-semibold">{persona.name}</p>
           </div>
         </div>
         <Waveform active={speaking || listening} listening={listening} />
-        <button
-          type="button"
-          onClick={onToggleAuto}
-          className="rounded-full border border-white/25 bg-white/10 px-3 py-1.5 text-xs font-medium transition-all hover:bg-white/20"
-        >
-          {autoListen ? "שיחה קולית רציפה · פועלת" : "שיחה קולית רציפה · כבויה"}
-        </button>
+        <div className="flex max-w-xs flex-col items-center gap-2 sm:items-end">
+          <TalkButton
+            listening={listening}
+            disabled={talkDisabled}
+            onStart={onStartListening}
+            onStop={onStopListening}
+            prominent
+          />
+          <p className="text-center text-xs leading-5 text-white/75 sm:text-end">
+            {listening
+              ? "המיקרופון פתוח. לחצו «סיימתי לדבר» כשתסיימו."
+              : "המיקרופון סגור עד שתלחצו, כדי שלא ייכנסו רעשי רקע."}
+          </p>
+        </div>
       </div>
     </div>
   );
@@ -770,14 +744,66 @@ function SampleLines({
   );
 }
 
+function TalkButton({
+  listening,
+  disabled,
+  onStart,
+  onStop,
+  prominent = false,
+}: {
+  listening: boolean;
+  disabled: boolean;
+  onStart: () => void;
+  onStop: () => void;
+  prominent?: boolean;
+}) {
+  if (listening) {
+    return (
+      <Button
+        type="button"
+        size="lg"
+        variant="destructive"
+        onClick={onStop}
+        data-testid="talk-button"
+        className={cn(
+          "min-h-11 flex-1 sm:flex-none",
+          prominent &&
+            "min-h-12 flex-none bg-white px-5 text-base font-semibold text-destructive hover:bg-white/90",
+        )}
+      >
+        <MicOff className="size-4" />
+        סיימתי לדבר
+      </Button>
+    );
+  }
+
+  return (
+    <Button
+      type="button"
+      size="lg"
+      onClick={onStart}
+      disabled={disabled}
+      data-testid="talk-button"
+      className={cn(
+        "mic-cta min-h-11 flex-1 sm:flex-none",
+        prominent &&
+          "min-h-12 flex-none bg-white px-5 text-base font-semibold text-primary shadow-lg hover:bg-white/90",
+      )}
+    >
+      <Mic className="size-4" />
+      לחצו כדי לדבר
+    </Button>
+  );
+}
+
 function Controls({
   status,
   busy,
   support,
   showKeyboard,
   typed,
-  autoListen,
   neuralVoice,
+  talkDisabled,
   onStartListening,
   onStopListening,
   onToggleKeyboard,
@@ -790,8 +816,8 @@ function Controls({
   support: { recognition: boolean; synthesis: boolean; hebrewVoice: boolean };
   showKeyboard: boolean;
   typed: string;
-  autoListen: boolean;
   neuralVoice: boolean;
+  talkDisabled: boolean;
   onStartListening: () => void;
   onStopListening: () => void;
   onToggleKeyboard: () => void;
@@ -804,29 +830,12 @@ function Controls({
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-2">
-        {listening ? (
-          <Button
-            type="button"
-            size="lg"
-            variant="destructive"
-            onClick={onStopListening}
-            className="min-h-11 flex-1 sm:flex-none"
-          >
-            <MicOff className="size-4" />
-            עצירת הקלטה
-          </Button>
-        ) : (
-          <Button
-            type="button"
-            size="lg"
-            onClick={onStartListening}
-            disabled={busy || !support.recognition || status === "speaking"}
-            className="mic-cta min-h-11 flex-1 sm:flex-none"
-          >
-            <Mic className="size-4" />
-            {autoListen ? "דיבור עכשיו" : "דיבור בעברית"}
-          </Button>
-        )}
+        <TalkButton
+          listening={listening}
+          disabled={talkDisabled}
+          onStart={onStartListening}
+          onStop={onStopListening}
+        />
         <Button
           type="button"
           size="lg"
