@@ -10,6 +10,7 @@ import {
   WandSparkles,
 } from "lucide-react";
 import { useCatalog } from "@/components/catalog-provider";
+import { DoctorPortrait } from "@/components/doctor-portrait";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -26,7 +27,6 @@ import {
   doctorTypeLabel,
   genderLabel,
   styleLabel,
-  voicePortrait,
 } from "@/lib/content";
 import { isSeedScenario } from "@/lib/catalog";
 import { generateOpening } from "@/lib/dialogue";
@@ -225,15 +225,12 @@ export function ScenarioPicker() {
                 </CardHeader>
                 <CardContent className="flex flex-col gap-4 pt-1">
                   <div className="flex items-center gap-3">
-                    <span className="flex size-11 items-center justify-center rounded-full bg-secondary text-sm font-semibold text-primary transition-transform group-hover/card:scale-105">
-                      {persona.portraitInitials}
-                    </span>
+                    <DoctorPortrait persona={persona} sizeClass="size-11" />
                     <div>
                       <p className="font-medium">{persona.name}</p>
                       <p className="text-xs text-muted-foreground">
                         {persona.clinic} · {persona.yearsInClinic} שנות ותק
                       </p>
-                      <p className="text-xs text-primary">{voicePortrait(persona)}</p>
                     </div>
                   </div>
                   <p className="text-sm leading-6 text-muted-foreground">

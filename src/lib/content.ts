@@ -18,6 +18,7 @@ export const PERSONAS: Persona[] = [
     ageBand: "veteran",
     clinic: "מרפאת רמת גן",
     portraitInitials: "ימ",
+    portraitSrc: "/portraits/mizrahi.jpg",
     stance:
       "ותיק עקשן. מאמין שרפואה טובה דורשת זמן, מזלזל במדדים, ומגן על הסמכות הקלינית שלו.",
     voice: { rate: 0.78, pitch: 0.68 },
@@ -32,6 +33,7 @@ export const PERSONAS: Persona[] = [
     ageBand: "veteran",
     clinic: "מרפאת ילדים חולון",
     portraitInitials: "תש",
+    portraitSrc: "/portraits/shapira.jpg",
     stance:
       "רופאת ילדים ותיקה וחדה. בטוחה בניסיון שלה, מתגוננת מול ״פרוטוקולים מהמטה״, ומאשימה את לחץ ההורים.",
     voice: { rate: 0.86, pitch: 0.9 },
@@ -46,6 +48,7 @@ export const PERSONAS: Persona[] = [
     ageBand: "early-career",
     clinic: "מרפאת פתח תקווה",
     portraitInitials: "אכ",
+    portraitSrc: "/portraits/cohen.jpg",
     stance:
       "מוצף והגנתי. מרגיש שכל שיחת ניהול היא האשמה נוספת על יום שכבר נשבר.",
     voice: { rate: 1.14, pitch: 1.08 },
@@ -60,6 +63,7 @@ export const PERSONAS: Persona[] = [
     ageBand: "early-career",
     clinic: "מרפאת ילדים כפר סבא",
     portraitInitials: "נב",
+    portraitSrc: "/portraits/ben-david.jpg",
     stance:
       "שחוקה מתלונות הורים. מפרשת משוב כהתקפה אישית, ואז מתקשה לשמוע את הבקשה המקצועית.",
     voice: { rate: 1.18, pitch: 1.26 },
@@ -501,12 +505,6 @@ export function ageBandLabel(band: Persona["ageBand"]): string {
 
 export function genderLabel(gender: Persona["gender"]): string {
   return gender === "male" ? "גבר" : "אישה";
-}
-
-export function voicePortrait(persona: Persona): string {
-  const age = persona.ageBand === "veteran" ? "קול נמוך ואיטי" : "קול מהיר ובהיר";
-  const gender = persona.gender === "male" ? "גברי" : "נשי";
-  return `${gender} · ${age}`;
 }
 
 export const SEED_SCENARIO_IDS = new Set(SCENARIOS.map((scenario) => scenario.id));

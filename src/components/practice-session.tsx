@@ -13,6 +13,7 @@ import {
   VolumeX,
 } from "lucide-react";
 import { DebriefPanel } from "@/components/debrief-panel";
+import { DoctorPortrait } from "@/components/doctor-portrait";
 import { Transcript } from "@/components/transcript";
 import { VoiceAnalysis } from "@/components/voice-analysis";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -27,7 +28,6 @@ import {
   genderLabel,
   rapportSamples,
   styleLabel,
-  voicePortrait,
 } from "@/lib/content";
 import { buildDebrief } from "@/lib/debrief";
 import {
@@ -46,7 +46,6 @@ import {
   type MicErrorCode,
 } from "@/lib/speech";
 import type {
-  AiProvider,
   DebriefNotes,
   DialogueState,
   DoctorTurnResult,
@@ -116,7 +115,6 @@ export function PracticeSession({
   const [beat, setBeat] = useState(
     () => createDialogueState(scenario.firstMeeting).beat,
   );
-  const [chatSource, setChatSource] = useState<AiProvider>("local");
   const [voiceSource, setVoiceSource] = useState<VoiceProvider>("browser");
 
   const stateRef = useRef<DialogueState>(
@@ -244,7 +242,6 @@ export function PracticeSession({
       setSignals(result.state.signals);
       setPhase(result.state.phase);
       setBeat(result.state.beat);
-      setChatSource(result.source);
       setTurns((current) => [
         ...current,
         {
@@ -415,7 +412,6 @@ export function PracticeSession({
       setSignals(result.state.signals);
       setPhase(result.state.phase);
       setBeat(result.state.beat);
-      setChatSource(result.source);
       setTurns([
         {
           id: nextId("doctor"),
@@ -510,6 +506,17 @@ export function PracticeSession({
         }}
       />
 
+      <Card className="mx-auto w-full bg-white ring-border shadow-none">
+        <CardContent className="px-6 py-5 text-center sm:px-10">
+          <p className="text-base leading-7">{scenario.tension}</p>
+          {scenario.clinicNote ? (
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+              {scenario.clinicNote}
+            </p>
+          ) : null}
+        </CardContent>
+      </Card>
+
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <div className="flex flex-col gap-4">
           {error ? (
@@ -589,32 +596,6 @@ export function PracticeSession({
         </div>
 
         <aside className="flex flex-col gap-4">
-          <Card className="lift-card bg-white ring-border shadow-none">
-            <CardHeader className="border-b border-border">
-              <div className="flex items-center gap-3">
-                <span className="flex size-12 items-center justify-center rounded-full bg-secondary text-base font-semibold text-primary">
-                  {persona.portraitInitials}
-                </span>
-                <div>
-                  <CardTitle className="text-base">{persona.name}</CardTitle>
-                  <p className="text-xs text-muted-foreground">
-                    {persona.clinic} · {persona.yearsInClinic} שנות ותק
-                  </p>
-                  <p className="text-xs text-primary">{voicePortrait(persona)}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {scenario.firstMeeting
-                      ? "פגישה ראשונה · קודם היכרות"
-                      : "פגישה מוכרת · קודם נימוסין"}
-                    {chatSource !== "local" ? ` · ${chatSource}` : " · מנוע מקומי"}
-                  </p>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-3 text-sm leading-6">
-              <p>{persona.stance}</p>
-              <p className="text-muted-foreground">{scenario.tension}</p>
-            </CardContent>
-          </Card>
           <VoiceAnalysis
             scenario={scenario}
             liveText={status === "listening" ? interim : lastManagerText}
@@ -700,12 +681,12 @@ function VoiceStage({
         <div className="flex items-center gap-4">
           <div
             className={cn(
-              "relative flex size-20 items-center justify-center rounded-full bg-white/15 text-xl font-semibold",
+              "relative size-24 shrink-0 rounded-full",
               speaking && "avatar-speaking",
               listening && "avatar-listening",
             )}
           >
-            {persona.portraitInitials}
+            <DoctorPortrait persona={persona} sizeClass="size-24" />
             {speaking || listening ? (
               <span className="pulse-ring" aria-hidden />
             ) : null}
@@ -719,7 +700,6 @@ function VoiceStage({
                   : "שיחה קולית"}
             </p>
             <p className="text-lg font-semibold">{persona.name}</p>
-            <p className="text-xs text-white/70">{voicePortrait(persona)}</p>
           </div>
         </div>
         <Waveform active={speaking || listening} listening={listening} />

@@ -23,6 +23,7 @@ export type Persona = {
   ageBand: AgeBand;
   clinic: string;
   portraitInitials: string;
+  portraitSrc: string;
   stance: string;
   voice: {
     rate: number;
