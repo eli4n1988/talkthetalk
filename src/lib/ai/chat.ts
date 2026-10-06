@@ -88,8 +88,9 @@ async function completeGemini(args: {
     contents,
     generationConfig: {
       temperature: 0.7,
-      maxOutputTokens: 280,
+      maxOutputTokens: 512,
       responseMimeType: "application/json",
+      thinkingConfig: { thinkingBudget: 0 },
     },
   });
 
