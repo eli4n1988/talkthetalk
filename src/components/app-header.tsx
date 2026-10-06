@@ -36,7 +36,7 @@ export function AppHeader() {
           <span className="sm:col-start-3" aria-hidden />
         )}
       </div>
-      <p className="border-t border-border/70 px-4 py-2 text-center text-[10px] leading-4 text-muted-foreground sm:px-8 sm:text-[11px] sm:leading-5">
+      <p className="border-t border-border/70 px-4 py-2 text-center text-[11px] leading-5 text-foreground/70 sm:px-8 sm:text-xs sm:leading-5">
         המערכת פותחה על ידי ד״ר אלי קבקוב — רופא נשים ומנהל רפואי במרחב גבעות
         השרון, מחוז השרון
         <span className="mt-0.5 block sm:mt-0 sm:inline">
