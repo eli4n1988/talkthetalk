@@ -157,7 +157,7 @@
   }
 
   .lift-card {
-    @apply transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-[0_18px_40px_-24px_rgb(8_63_146_/_0.45)] hover:ring-primary/20;
+    @apply transition-all duration-300 ease-out hover:-translate-y-2 hover:shadow-[0_24px_48px_-16px_rgb(8_63_146_/_0.4)] hover:ring-2 hover:ring-primary/35;
   }
 
   .select-field {
@@ -307,5 +307,9 @@
   .hover-lift:hover,
   .nav-pill:hover {
     transform: none;
+  }
+
+  .lift-card:hover {
+    box-shadow: 0 24px 48px -16px rgb(8 63 146 / 0.4);
   }
 }

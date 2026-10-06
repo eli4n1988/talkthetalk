@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import {
   Copy,
@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { useCatalog } from "@/components/catalog-provider";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -75,6 +75,12 @@ export function AdminPanel() {
   } = useCatalog();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState<Scenario | null>(null);
+  const editorRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!draft) return;
+    editorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [draft, editingId]);
 
   const startCreate = () => {
     const next = createBlankScenario(personas[0]);
@@ -140,10 +146,15 @@ export function AdminPanel() {
           שיחות חדשות. השינויים נשמרים בדפדפן זה בלבד — בלי שרת ובלי סיסמה.
         </p>
         <div className="flex flex-wrap gap-2">
-          <Button type="button" onClick={startCreate} className="hover-lift">
+          <button
+            type="button"
+            data-testid="admin-new-scenario"
+            onClick={startCreate}
+            className={cn(buttonVariants(), "hover-lift")}
+          >
             <Plus className="size-4" />
             תרחיש חדש
-          </Button>
+          </button>
           <Button
             type="button"
             variant="outline"
@@ -155,6 +166,22 @@ export function AdminPanel() {
           </Button>
         </div>
       </section>
+
+      {draft ? (
+        <div ref={editorRef} id="scenario-editor" className="scroll-mt-24">
+          <ScenarioEditor
+            draft={draft}
+            personas={personas}
+            onChange={setDraft}
+            onSave={saveDraft}
+            onCancel={() => {
+              setDraft(null);
+              setEditingId(null);
+              stopSpeaking();
+            }}
+          />
+        </div>
+      ) : null}
 
       <div className="grid gap-4">
         {scenarios.map((scenario, index) => {
@@ -192,15 +219,15 @@ export function AdminPanel() {
                 </CardDescription>
               </CardHeader>
               <CardFooter className="flex flex-wrap gap-2 bg-secondary/40">
-                <Button
+                <button
                   type="button"
-                  size="sm"
+                  data-testid="admin-edit-scenario"
                   onClick={() => startEdit(scenario)}
-                  className="hover-lift"
+                  className={cn(buttonVariants({ size: "sm" }), "hover-lift")}
                 >
                   <Pencil className="size-3.5" />
                   עריכה
-                </Button>
+                </button>
                 <Button
                   type="button"
                   size="sm"
@@ -249,20 +276,6 @@ export function AdminPanel() {
           );
         })}
       </div>
-
-      {draft ? (
-        <ScenarioEditor
-          draft={draft}
-          personas={personas}
-          onChange={setDraft}
-          onSave={saveDraft}
-          onCancel={() => {
-            setDraft(null);
-            setEditingId(null);
-            stopSpeaking();
-          }}
-        />
-      ) : null}
     </div>
   );
 }
@@ -299,12 +312,12 @@ function ScenarioEditor({
   };
 
   return (
-    <Card className="lift-card bg-white ring-border shadow-none">
+    <Card className="bg-white shadow-none ring-2 ring-primary/40">
       <CardHeader className="border-b border-border">
-        <CardTitle>עריכת תרחיש</CardTitle>
+        <CardTitle>טופס עריכה</CardTitle>
         <CardDescription className="text-start">
-          שורות מופרדות בנקודתיים או בפסיקים בשדות המילים; תשובות הרופא — שורה לכל
-          משפט.
+          הטופס נפתח כאן למעלה. שורות מופרדות בפסיקים בשדות המילים; תשובות הרופא —
+          שורה לכל משפט.
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-5 pt-2">
@@ -437,17 +450,21 @@ function ScenarioEditor({
         ))}
       </CardContent>
       <CardFooter className="flex flex-wrap gap-2 bg-secondary/40">
-        <Button type="button" onClick={onSave} className="hover-lift">
-          שמירת תרחיש
-        </Button>
-        <Button
+        <button
           type="button"
-          variant="outline"
+          data-testid="admin-save-scenario"
+          onClick={onSave}
+          className={cn(buttonVariants(), "hover-lift")}
+        >
+          שמירת תרחיש
+        </button>
+        <button
+          type="button"
           onClick={onCancel}
-          className="hover-lift"
+          className={cn(buttonVariants({ variant: "outline" }), "hover-lift")}
         >
           סגירה
-        </Button>
+        </button>
       </CardFooter>
     </Card>
   );
