@@ -43,8 +43,8 @@ export function ScenarioPicker() {
   }, [filter, query]);
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+    <div className="flex flex-col gap-8">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div className="flex flex-wrap gap-2">
           <FilterChip
             active={filter === "all"}
@@ -77,7 +77,7 @@ export function ScenarioPicker() {
       </div>
 
       {scenarios.length === 0 ? (
-        <Card className="border-dashed bg-card/70 py-12 text-center">
+        <Card className="border-dashed bg-white py-12 text-center ring-border shadow-none">
           <CardHeader>
             <CardTitle>אין תרחישים מתאימים</CardTitle>
             <CardDescription>
@@ -104,23 +104,23 @@ export function ScenarioPicker() {
             return (
               <Card
                 key={scenario.id}
-                className="bg-card/90 transition-shadow hover:shadow-md"
+                className="bg-white ring-border shadow-none transition-shadow hover:shadow-sm"
               >
-                <CardHeader className="border-b">
+                <CardHeader className="border-b border-border">
                   <div className="flex flex-wrap items-center gap-1.5">
                     <Badge variant="secondary">
                       {doctorTypeLabel(scenario.doctorType)}
                     </Badge>
                     <Badge variant="outline">{styleLabel(persona.style)}</Badge>
                   </div>
-                  <CardTitle className="text-lg">{scenario.title}</CardTitle>
-                  <CardDescription className="text-start leading-6">
+                  <CardTitle className="text-lg font-semibold">{scenario.title}</CardTitle>
+                  <CardDescription className="text-start text-[13.5px] leading-6">
                     {scenario.tension}
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="flex flex-col gap-3">
+                <CardContent className="flex flex-col gap-4 pt-1">
                   <div className="flex items-center gap-3">
-                    <span className="flex size-11 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
+                    <span className="flex size-11 items-center justify-center rounded-full bg-secondary text-sm font-semibold text-primary">
                       {persona.portraitInitials}
                     </span>
                     <div>
@@ -134,7 +134,7 @@ export function ScenarioPicker() {
                     {scenario.clinicNote}
                   </p>
                 </CardContent>
-                <CardFooter>
+                <CardFooter className="border-border bg-secondary/40">
                   <Link
                     href={`/practice/${scenario.id}`}
                     className={cn(
@@ -171,7 +171,7 @@ function FilterChip({
       size="sm"
       variant={active ? "default" : "outline"}
       onClick={onClick}
-      className="rounded-full"
+      className="rounded-md"
     >
       {icon}
       {label}

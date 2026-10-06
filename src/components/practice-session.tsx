@@ -398,7 +398,7 @@ export function PracticeSession({
                 disabled={busy}
                 onSample={(line) => void submitManagerText(line)}
               />
-              <div className="hidden rounded-xl border bg-card p-3 lg:block">
+              <div className="hidden rounded-lg border border-border bg-white p-4 lg:block">
                 <Controls
                   status={status}
                   busy={busy}
@@ -418,10 +418,10 @@ export function PracticeSession({
         </div>
 
         <aside className="flex flex-col gap-4">
-          <Card>
-            <CardHeader className="border-b">
+          <Card className="bg-white ring-border shadow-none">
+            <CardHeader className="border-b border-border">
               <div className="flex items-center gap-3">
-                <span className="flex size-12 items-center justify-center rounded-full bg-primary/10 text-base font-semibold text-primary">
+                <span className="flex size-12 items-center justify-center rounded-full bg-secondary text-base font-semibold text-primary">
                   {persona.portraitInitials}
                 </span>
                 <div>
@@ -437,14 +437,14 @@ export function PracticeSession({
               <p className="text-muted-foreground">{scenario.tension}</p>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="bg-white ring-border shadow-none">
             <CardHeader>
-              <CardTitle className="text-base">מה לנסות בשיחה</CardTitle>
+              <CardTitle className="text-base font-semibold">מה לנסות בשיחה</CardTitle>
             </CardHeader>
             <CardContent>
               <ul className="flex flex-col gap-2 text-sm leading-6">
                 {scenario.managerGoals.map((goal) => (
-                  <li key={goal} className="rounded-lg bg-muted/60 px-3 py-2">
+                  <li key={goal} className="rounded-md border border-border bg-secondary/50 px-3 py-2">
                     {goal}
                   </li>
                 ))}
@@ -457,7 +457,7 @@ export function PracticeSession({
       {status === "ended" && debrief ? <DebriefPanel notes={debrief} /> : null}
 
       {status !== "ended" ? (
-        <div className="fixed inset-x-0 bottom-0 z-20 border-t bg-card/95 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur lg:hidden">
+        <div className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-white p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] lg:hidden">
           <Controls
             status={status}
             busy={busy}
@@ -487,8 +487,8 @@ function SampleLines({
   onSample: (line: string) => void;
 }) {
   return (
-    <div className="flex flex-col gap-2 rounded-xl border bg-card p-3">
-      <p className="text-sm font-medium">אין מיקרופון? שלחו משפט אימון מוכן</p>
+    <div className="flex flex-col gap-2 rounded-lg border border-border bg-white p-4">
+      <p className="text-sm font-medium text-primary">אין מיקרופון? שלחו משפט אימון מוכן</p>
       <div className="flex flex-col gap-2">
         {lines.map((line) => (
           <button
