@@ -7,7 +7,6 @@ import { ScenarioPicker } from "@/components/scenario-picker";
 import {
   districtLabel,
   managerRoleLabel,
-  partnerNounPlural,
 } from "@/lib/profile";
 
 export function HomeScreen() {
@@ -38,9 +37,9 @@ export function HomeScreen() {
           style={{ animationDelay: "140ms" }}
         >
           האפליקציה מיועדת למנהלים רפואיים במכבי שמנהלים רופאים וצריכים לנהל
-          איתם שיחות על בעיות במרפאה. כאן יש מגוון תרחישים — לא תרחיש אחד
-          קבוע. השיחות יוצגו מול {partnerNounPlural(profile.gender)} בלבד, לפי
-          המין שנבחר בכניסה.
+          איתם שיחות על בעיות במרפאה. כאן יש מגוון תרחישים מול רופאים ורופאות.
+          המין קובע רק איך פונים אליכם בשיחה. המרפאה יושבת בעיר במחוז{" "}
+          {districtLabel(profile.district)}.
         </p>
         <button
           type="button"

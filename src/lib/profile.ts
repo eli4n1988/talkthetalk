@@ -88,3 +88,54 @@ export function partnerNoun(gender: VoiceGender): string {
 export function partnerNounPlural(gender: VoiceGender): string {
   return gender === "female" ? "רופאות" : "רופאים";
 }
+
+export const DISTRICT_CITIES: Record<MaccabiDistrictId, string[]> = {
+  north: ["חיפה", "נהריה", "עפולה", "כרמיאל"],
+  south: ["באר שבע", "אשדוד", "אשקלון", "דימונה"],
+  "yam-shfela": ["ראשון לציון", "רחובות", "חולון", "יבנה"],
+  center: ["רמת גן", "פתח תקווה", "גבעתיים", "מודיעין"],
+  sharon: ["כפר סבא", "רעננה", "הרצליה", "נתניה"],
+};
+
+const PERSONA_CITY_SLOT: Record<string, number> = {
+  mizrahi: 0,
+  shapira: 1,
+  cohen: 2,
+  "ben-david": 3,
+};
+
+export function clinicCityForPersona(
+  personaId: string,
+  district: MaccabiDistrictId,
+): string {
+  const cities = DISTRICT_CITIES[district];
+  const slot = PERSONA_CITY_SLOT[personaId];
+  const index =
+    slot != null ? slot % cities.length : hashString(personaId) % cities.length;
+  return cities[index] ?? cities[0];
+}
+
+export function clinicForDistrict(
+  persona: { id: string; doctorType: "family" | "pediatrician" },
+  district: MaccabiDistrictId,
+): string {
+  const city = clinicCityForPersona(persona.id, district);
+  return persona.doctorType === "pediatrician"
+    ? `מרפאת ילדים ${city}`
+    : `מרפאת ${city}`;
+}
+
+export function personaInDistrict<T extends { id: string; doctorType: "family" | "pediatrician"; clinic: string }>(
+  persona: T,
+  district: MaccabiDistrictId,
+): T {
+  return { ...persona, clinic: clinicForDistrict(persona, district) };
+}
+
+function hashString(value: string): number {
+  let total = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    total += value.charCodeAt(index) * (index + 1);
+  }
+  return total;
+}

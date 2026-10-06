@@ -65,15 +65,9 @@ export function OnboardingScreen({
             {editing ? "שינוי שם, מין או מחוז" : "לפני שנכנסים לחדר"}
           </CardTitle>
           <CardDescription className="text-start text-[15px] leading-7">
-            TalktheTalk מיועד למנהלים רפואיים במכבי שמנהלים רופאים וצריכים לנהל
-            איתם שיחות על בעיות במרפאה. אחרי השמירה תעברו לרשימת תרחישים לבחירה —
-            השיחה תמיד תתנהל מול{" "}
-            {gender === "female"
-              ? "רופאה"
-              : gender === "male"
-                ? "רופא"
-                : "הרופא או הרופאה"}{" "}
-            לפי המין שנבחר כאן.
+            סימולצית השיחה נועדה לתרגל ולהתכונן לשיחות עם רופאים. המטרה היא
+            לדעת כיצד להתמודד ולמצוא דרכים באמצעותן ניתן לרתום את הרופא ולהביא
+            להשגת המטרות המשותפות.
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit} data-testid="onboarding-form">
@@ -97,7 +91,8 @@ export function OnboardingScreen({
             <fieldset className="flex flex-col gap-2">
               <legend className="text-sm font-medium">מין</legend>
               <p className="text-sm text-muted-foreground">
-                כך נפנה אליכם בשיחה, וכך נבחר את הרופאים מולכם.
+                כך נפנה אליכם בשיחה — אתה או את. זה לא משנה אילו רופאים יופיעו
+                ברשימת התרחישים.
               </p>
               <div className="grid grid-cols-2 gap-2">
                 <ChoiceButton
@@ -124,6 +119,9 @@ export function OnboardingScreen({
 
             <fieldset className="flex flex-col gap-2">
               <legend className="text-sm font-medium">מחוז במכבי</legend>
+              <p className="text-sm text-muted-foreground">
+                מרפאת הרופא בשיחה תהיה בעיר במחוז שבחרתם.
+              </p>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                 {MACCABI_DISTRICTS.map((item) => (
                   <ChoiceButton

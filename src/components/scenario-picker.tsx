@@ -29,39 +29,43 @@ import {
   styleLabel,
 } from "@/lib/content";
 import { isSeedScenario } from "@/lib/catalog";
-import { partnerNounPlural } from "@/lib/profile";
-import type { AgeBand, DoctorType } from "@/lib/types";
+import { districtLabel, personaInDistrict } from "@/lib/profile";
+import type { AgeBand, DoctorType, VoiceGender } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 type TypeFilter = "all" | DoctorType;
+type GenderFilter = "all" | VoiceGender;
 type AgeFilter = "all" | AgeBand;
 
 export function ScenarioPicker() {
   const { scenarios, getPersona, ready } = useCatalog();
   const { profile } = useProfile();
   const [filter, setFilter] = useState<TypeFilter>("all");
+  const [gender, setGender] = useState<GenderFilter>("all");
   const [age, setAge] = useState<AgeFilter>("all");
   const [query, setQuery] = useState("");
-  const partnerGender = profile?.gender;
 
   const visible = useMemo(() => {
     const needle = query.trim();
     return scenarios.filter((scenario) => {
       const persona = getPersona(scenario.personaId);
       if (!persona) return false;
-      if (partnerGender && persona.gender !== partnerGender) return false;
       if (filter !== "all" && scenario.doctorType !== filter) return false;
+      if (gender !== "all" && persona.gender !== gender) return false;
       if (age !== "all" && persona.ageBand !== age) return false;
+      const located = profile
+        ? personaInDistrict(persona, profile.district)
+        : persona;
       if (!needle) return true;
       const haystack = [
         scenario.title,
         scenario.tension,
-        persona.name,
-        persona.clinic,
+        located.name,
+        located.clinic,
       ].join(" ");
       return haystack.includes(needle);
     });
-  }, [age, filter, getPersona, partnerGender, query, scenarios]);
+  }, [age, filter, gender, getPersona, profile, query, scenarios]);
 
   return (
     <div className="flex flex-col gap-8">
@@ -85,14 +89,28 @@ export function ScenarioPicker() {
             icon={<Baby className="size-3.5" />}
           />
         </div>
-        {partnerGender ? (
-          <p className="text-sm text-muted-foreground" data-testid="gender-lock-note">
-            מוצגים תרחישים מול {partnerNounPlural(partnerGender)} בלבד, לפי המין
-            שנבחר בכניסה.
+        {profile ? (
+          <p className="text-sm text-muted-foreground">
+            מרפאות הרופאים מוצגות בעיר במחוז {districtLabel(profile.district)}.
           </p>
         ) : null}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-wrap gap-2">
+            <FilterChip
+              active={gender === "all"}
+              onClick={() => setGender("all")}
+              label="כל הקולות"
+            />
+            <FilterChip
+              active={gender === "male"}
+              onClick={() => setGender("male")}
+              label="גברים"
+            />
+            <FilterChip
+              active={gender === "female"}
+              onClick={() => setGender("female")}
+              label="נשים"
+            />
             <FilterChip
               active={age === "all"}
               onClick={() => setAge("all")}
@@ -136,8 +154,7 @@ export function ScenarioPicker() {
           <CardHeader>
             <CardTitle>אין תרחישים מתאימים</CardTitle>
             <CardDescription>
-              נסו מילה אחרת, אפסו את הסינון, או שנו את המין בכניסה כדי לראות
-              תרחישים נוספים.
+              נסו מילה אחרת, או אפסו את הסינון כדי לראות את כל שיחות האימון.
             </CardDescription>
           </CardHeader>
           <CardFooter className="justify-center border-t-0 bg-transparent">
@@ -146,6 +163,7 @@ export function ScenarioPicker() {
               className="hover-lift"
               onClick={() => {
                 setFilter("all");
+                setGender("all");
                 setAge("all");
                 setQuery("");
               }}
@@ -157,8 +175,11 @@ export function ScenarioPicker() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2" data-testid="scenario-grid">
           {visible.map((scenario, index) => {
-            const persona = getPersona(scenario.personaId);
-            if (!persona) return null;
+            const seed = getPersona(scenario.personaId);
+            if (!seed) return null;
+            const persona = profile
+              ? personaInDistrict(seed, profile.district)
+              : seed;
             const custom = !isSeedScenario(scenario.id);
             return (
               <Card

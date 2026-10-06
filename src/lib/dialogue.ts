@@ -5,6 +5,7 @@ import {
   managerStanding,
   managerTell,
   managerYou,
+  personaInDistrict,
   type ManagerProfile,
 } from "@/lib/profile";
 import type {
@@ -65,11 +66,20 @@ export function detectSignals(
   return found;
 }
 
+function resolvePersona(
+  scenario: Scenario,
+  manager?: ManagerProfile | null,
+): Persona | undefined {
+  const seed = getPersona(scenario.personaId);
+  if (!seed) return undefined;
+  return manager ? personaInDistrict(seed, manager.district) : seed;
+}
+
 export function generateOpening(
   scenario: Scenario,
   manager?: ManagerProfile | null,
 ): DoctorTurnResult {
-  const persona = getPersona(scenario.personaId);
+  const persona = resolvePersona(scenario, manager);
   return {
     reply: persona
       ? scenario.firstMeeting
@@ -88,7 +98,7 @@ export function generateDoctorReply(
   userText: string,
   manager?: ManagerProfile | null,
 ): DoctorTurnResult {
-  const persona = getPersona(scenario.personaId);
+  const persona = resolvePersona(scenario, manager);
   const signalsThisTurn = detectSignals(userText, scenario);
   const nextSignals: SignalCounts = { ...state.signals };
   signalsThisTurn.forEach((signal) => {

@@ -34,7 +34,7 @@ export function buildDoctorSystemPrompt(args: {
     : "אתם כבר עובדים יחד במרפאה. התחל בנימוסין קצרים (שלום, מה נשמע, איך היום) — בלי לפרוק את התלונה מיד.";
   const you = manager ? managerYou(manager.gender) : "אתה/את";
   const managerLine = manager
-    ? `מולך ${manager.gender === "female" ? "יושבת" : "יושב"} ${manager.name}, ${managerRoleLabel(manager.gender)} במכבי מחוז ${districtLabel(manager.district)}. פנה רק ב-${you}.`
+    ? `מולך ${manager.gender === "female" ? "יושבת" : "יושב"} ${manager.name}, ${managerRoleLabel(manager.gender)} במכבי מחוז ${districtLabel(manager.district)}. המרפאה שלך היא ${persona.clinic}. פנה רק ב-${you}.`
     : "מולך מנהל או מנהלת רפואית במכבי.";
 
   return [
