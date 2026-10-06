@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { AiStatusBadge } from "@/components/ai-status-badge";
 import { OnboardingScreen } from "@/components/onboarding-screen";
 import { useProfile } from "@/components/profile-provider";
 import { ScenarioPicker } from "@/components/scenario-picker";
@@ -43,18 +42,12 @@ export function HomeScreen() {
           קבוע. השיחות יוצגו מול {partnerNounPlural(profile.gender)} בלבד, לפי
           המין שנבחר בכניסה.
         </p>
-        <div
-          className="stagger-in mt-4"
-          style={{ animationDelay: "200ms" }}
-        >
-          <AiStatusBadge />
-        </div>
         <button
           type="button"
           onClick={() => setEditing(true)}
           data-testid="edit-profile"
           className="stagger-in mt-4 text-sm font-medium text-primary underline-offset-4 hover:underline"
-          style={{ animationDelay: "260ms" }}
+          style={{ animationDelay: "200ms" }}
         >
           שינוי פרטים
         </button>
