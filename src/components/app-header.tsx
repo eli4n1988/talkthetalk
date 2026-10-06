@@ -10,16 +10,16 @@ export function AppHeader() {
   return (
     <header className="sticky top-0 z-30 border-b border-border bg-white/90 backdrop-blur-md">
       <div className="h-1 w-full bg-header-bar" />
-      <div className="mx-auto grid w-full max-w-6xl grid-cols-1 items-center justify-items-center gap-2 px-5 py-3 sm:grid-cols-[1fr_auto_1fr] sm:gap-4 sm:px-8 sm:py-3.5">
+      <div className="mx-auto grid w-full max-w-6xl grid-cols-1 items-center justify-items-center gap-2 px-5 py-3.5 sm:grid-cols-[1fr_auto_1fr] sm:gap-4 sm:px-8 sm:py-4">
         <Link
           href="/"
           className="flex min-w-0 flex-col items-center text-center sm:col-start-2"
         >
-          <span className="font-heading text-lg font-semibold tracking-tight text-primary sm:text-xl">
+          <span className="font-heading text-2xl font-bold tracking-tight text-primary sm:text-3xl">
             TalktheTalk
           </span>
-          <span className="mt-1 h-px w-8 bg-primary/35" aria-hidden />
-          <span className="mt-1.5 text-[11px] font-medium leading-snug text-muted-foreground sm:text-xs">
+          <span className="mt-1.5 h-0.5 w-10 bg-primary/50" aria-hidden />
+          <span className="mt-2 text-sm font-semibold leading-snug text-primary sm:text-base">
             סימולצית שיחה למנהלים רפואיים
           </span>
         </Link>
