@@ -59,6 +59,7 @@ export type DialogueState = {
   phase: DialoguePhase;
   beat: SocialBeat;
   turnCount: number;
+  issueTurnCount: number;
   signals: SignalCounts;
   usedReplyIndexes: Partial<Record<DialoguePhase, number[]>>;
 };

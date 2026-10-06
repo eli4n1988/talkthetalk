@@ -1,4 +1,5 @@
 import { PERSONAS, SCENARIOS, SEED_SCENARIO_IDS } from "@/lib/content";
+import { ensureSuccessPath, playWinningScript } from "@/lib/success-path";
 import type {
   CoachingSignal,
   DialoguePhase,
@@ -180,7 +181,7 @@ export function sanitizeScenario(input: Scenario): Scenario {
     PERSONAS.find((item) => item.doctorType === input.doctorType) ??
     PERSONAS[0];
 
-  return {
+  return ensureSuccessPath({
     id: input.id || createScenarioId(),
     title: input.title.trim() || "תרחיש ללא כותרת",
     tension: input.tension.trim(),
@@ -204,7 +205,7 @@ export function sanitizeScenario(input: Scenario): Scenario {
       challenge: cleanList(input.replies?.challenge ?? [], 1),
       soften: cleanList(input.replies?.soften ?? [], 1),
     },
-  };
+  });
 }
 
 function cleanList(items: string[] | undefined, min: number): string[] {
@@ -226,4 +227,13 @@ function isScenarioShape(value: unknown): value is Scenario {
     SIGNALS.every((signal) => Array.isArray(scenario.keywords?.[signal])) &&
     PHASES.every((phase) => Array.isArray(scenario.replies?.[phase]))
   );
+}
+
+for (const scenario of SCENARIOS) {
+  const played = playWinningScript(scenario);
+  if (!played.reachedSoftening) {
+    throw new Error(
+      `Seed scenario ${scenario.id} has no success path (phase=${played.phase} after ${played.turnsPlayed} turns).`,
+    );
+  }
 }

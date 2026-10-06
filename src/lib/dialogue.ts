@@ -30,6 +30,7 @@ export function createDialogueState(firstMeeting = false): DialogueState {
     phase: "resist",
     beat: firstMeeting ? "intro" : "greeting",
     turnCount: 0,
+    issueTurnCount: 0,
     signals: { ...EMPTY_SIGNALS },
     usedReplyIndexes: {},
   };
@@ -93,14 +94,16 @@ export function generateDoctorReply(
 
   const issueTurnCount =
     nextBeat === "issue"
-      ? nextTurnCount - (scenario.firstMeeting ? 2 : 1)
+      ? state.beat === "issue"
+        ? (state.issueTurnCount ?? 0) + 1
+        : 1
       : 0;
 
   const nextPhase =
     nextBeat === "issue"
       ? nextPhaseFromSignals({
           current: state.beat === "issue" ? state.phase : "resist",
-          turnCount: Math.max(1, issueTurnCount),
+          turnCount: issueTurnCount,
           signalsThisTurn,
           totals: nextSignals,
           latinOnly: isMostlyLatin(userText),
@@ -129,6 +132,7 @@ export function generateDoctorReply(
       phase: nextPhase,
       beat: nextBeat,
       turnCount: nextTurnCount,
+      issueTurnCount,
       signals: nextSignals,
       usedReplyIndexes: {
         ...state.usedReplyIndexes,

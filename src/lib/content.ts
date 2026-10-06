@@ -70,6 +70,7 @@ export const PERSONAS: Persona[] = [
   },
 ];
 
+/** Every scenario here must remain winnable: empathy + partnership → soften. */
 export const SCENARIOS: Scenario[] = [
   {
     id: "wait-times",

@@ -31,6 +31,7 @@ import {
   isSeedScenario,
   sanitizeScenario,
 } from "@/lib/catalog";
+import { SUCCESS_PATH_RULE, successPathGaps } from "@/lib/success-path";
 import {
   SIGNAL_LABELS,
   ageBandLabel,
@@ -107,10 +108,17 @@ export function AdminPanel() {
       return;
     }
     const clean = sanitizeScenario(draft);
+    const filledGaps = successPathGaps(draft);
     upsertScenario(clean);
     setDraft(clean);
     setEditingId(clean.id);
-    toast.success("התרחיש נשמר במכשיר זה.");
+    if (filledGaps.length > 0) {
+      toast.success(
+        "התרחיש נשמר. השלמנו אמפתיה, שותפות או שורת ריכוך כדי שתהיה דרך להצליח.",
+      );
+    } else {
+      toast.success("התרחיש נשמר במכשיר זה.");
+    }
   };
 
   const handleDelete = (id: string) => {
@@ -144,7 +152,8 @@ export function AdminPanel() {
         <h1 className="text-3xl font-semibold">התאימו את חדר האימון למרפאה שלכם</h1>
         <p className="max-w-2xl text-sm leading-7 text-muted-foreground">
           כאן עורכים כל תרחיש, מחליפים רופא (גבר/אישה, ותיק/צעיר), ומוסיפים
-          שיחות חדשות. השינויים נשמרים בדפדפן זה בלבד — בלי שרת ובלי סיסמה.
+          שיחות חדשות. השינויים נשמרים בדפדפן זה בלבד — בלי שרת ובלי סיסמה.{" "}
+          {SUCCESS_PATH_RULE}
         </p>
         <div className="flex flex-wrap gap-2">
           <button
@@ -412,6 +421,10 @@ function ScenarioEditor({
             }
             className="min-h-24"
           />
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+            חייב להיות לפחות משפט אחד עם שיקוף (אמפתיה) ומשפט אחד עם שותפות או
+            ניסוי — זו הדרך להצליח בסימולציה.
+          </p>
         </Field>
         <div className="grid gap-4 sm:grid-cols-2">
           {SIGNAL_ORDER.map((signal) => (

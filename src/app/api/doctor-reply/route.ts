@@ -6,6 +6,7 @@ import {
 } from "@/lib/dialogue";
 import { getPersona, getScenario } from "@/lib/content";
 import type {
+  DialoguePhase,
   DialogueState,
   DoctorTurnResult,
   Persona,
@@ -67,14 +68,26 @@ export async function POST(request: Request) {
       kind,
     });
     if (ai) {
+      const beat =
+        local.state.beat === "issue" || ai.reply.beat === "issue"
+          ? "issue"
+          : ai.reply.beat;
+      const phase =
+        beat === "issue"
+          ? furtherPhase(local.state.phase, ai.reply.phase)
+          : local.state.phase;
+      const reply =
+        phase === "soften" && ai.reply.phase !== "soften"
+          ? local.reply
+          : ai.reply.reply;
       const merged: DoctorTurnResult = {
         ...local,
-        reply: ai.reply.reply,
+        reply,
         source: ai.source,
         state: {
           ...local.state,
-          beat: ai.reply.beat,
-          phase: ai.reply.beat === "issue" ? ai.reply.phase : local.state.phase,
+          beat,
+          phase,
         },
       };
       return Response.json(merged);
@@ -85,3 +98,9 @@ export async function POST(request: Request) {
 
   return Response.json(local);
 }
+
+function furtherPhase(left: DialoguePhase, right: DialoguePhase): DialoguePhase {
+  const order: DialoguePhase[] = ["resist", "deflect", "challenge", "soften"];
+  return order.indexOf(left) >= order.indexOf(right) ? left : right;
+}
+
