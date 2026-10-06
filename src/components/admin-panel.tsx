@@ -78,9 +78,10 @@ export function AdminPanel() {
   const editorRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!draft) return;
-    editorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }, [draft, editingId]);
+    if (!editingId) return;
+    window.scrollTo({ top: 0, behavior: "auto" });
+    editorRef.current?.scrollIntoView({ behavior: "auto", block: "start" });
+  }, [editingId]);
 
   const startCreate = () => {
     const next = createBlankScenario(personas[0]);
