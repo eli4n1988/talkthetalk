@@ -52,7 +52,10 @@ async function geminiSpeak(
   const key = geminiKey();
   if (!key) return null;
   const voiceName = geminiVoiceFor(persona);
-  const prompt = `${voiceStyleInstructions(persona)}\n\nקרא בדיוק את הטקסט הבא, בעברית מדוברת:\n${text}`;
+  // Gemini TTS speaks every word in `contents`. Do not prepend style notes —
+  // 3.8 Flash TTS will read them aloud as if they were the doctor's line.
+  const spokenLine = text.trim();
+  if (!spokenLine) return null;
 
   const models = [
     "gemini-3.8-flash-tts",
@@ -68,7 +71,7 @@ async function geminiSpeak(
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
+          contents: [{ parts: [{ text: spokenLine }] }],
           generationConfig: {
             responseModalities: ["AUDIO"],
             speechConfig: {
