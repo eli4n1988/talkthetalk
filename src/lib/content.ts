@@ -5,6 +5,7 @@ import type {
   Persona,
   Scenario,
   SocialBeat,
+  VoiceGender,
 } from "@/lib/types";
 
 export const PERSONAS: Persona[] = [
@@ -531,11 +532,21 @@ export const BEAT_LABELS: Record<SocialBeat, string> = {
   issue: "הנושא",
 };
 
-export function rapportSamples(firstMeeting: boolean): string[] {
+export function rapportSamples(
+  firstMeeting: boolean,
+  gender: VoiceGender = "male",
+): string[] {
   if (firstMeeting) {
+    if (gender === "female") {
+      return [
+        "שלום, נעים מאוד. אני מנהלת המרפאה — עוד לא הספקנו להכיר באמת.",
+        "אני חדשה איתך בחדר. ספרי לי קצת עליך, ואז נדבר על העבודה.",
+        "נעים להכיר. אני כאן כדי לעבוד איתך, לא מעליך.",
+      ];
+    }
     return [
-      "שלום, נעים מאוד. אני מנהל/ת המרפאה — עוד לא הספקנו להכיר באמת.",
-      "אני חדש/ה איתך בחדר. ספר/י לי קצת עליך, ואז נדבר על העבודה.",
+      "שלום, נעים מאוד. אני מנהל המרפאה — עוד לא הספקנו להכיר באמת.",
+      "אני חדש איתך בחדר. ספר לי קצת עליך, ואז נדבר על העבודה.",
       "נעים להכיר. אני כאן כדי לעבוד איתך, לא מעליך.",
     ];
   }

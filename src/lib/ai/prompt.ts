@@ -5,6 +5,13 @@ import type {
   SocialBeat,
   TranscriptTurn,
 } from "@/lib/types";
+import {
+  districtLabel,
+  managerRoleLabel,
+  managerStanding,
+  managerYou,
+  type ManagerProfile,
+} from "@/lib/profile";
 
 export type ModelReply = {
   reply: string;
@@ -19,16 +26,22 @@ export function buildDoctorSystemPrompt(args: {
   scenario: Scenario;
   persona: Persona;
   beat: SocialBeat;
+  manager?: ManagerProfile | null;
 }): string {
-  const { scenario, persona, beat } = args;
+  const { scenario, persona, beat, manager } = args;
   const meeting = scenario.firstMeeting
-    ? "זו פגישה ראשונה. אתם עדיין לא מכירים. חובה להציג את עצמך (שם, תפקיד, ותק קצר) ולשאול מי עומד מולי, לפני הנושא הקליני."
+    ? `זו פגישה ראשונה. אתם עדיין לא מכירים. חובה להציג את עצמך (שם, תפקיד, ותק קצר) ולשאול מי ${manager ? managerStanding(manager.gender) : "עומד/ת"} מולי, לפני הנושא הקליני.`
     : "אתם כבר עובדים יחד במרפאה. התחל בנימוסין קצרים (שלום, מה נשמע, איך היום) — בלי לפרוק את התלונה מיד.";
+  const you = manager ? managerYou(manager.gender) : "אתה/את";
+  const managerLine = manager
+    ? `מולך ${manager.gender === "female" ? "יושבת" : "יושב"} ${manager.name}, ${managerRoleLabel(manager.gender)} במכבי מחוז ${districtLabel(manager.district)}. פנה רק ב-${you}.`
+    : "מולך מנהל או מנהלת רפואית במכבי.";
 
   return [
     `אתה ${persona.name}, ${persona.gender === "male" ? "רופא" : "רופאה"} ב${persona.clinic}, ${persona.yearsInClinic} שנות ותק.`,
     persona.stance,
-    "זה סימולטור אימון למנהל/ת מרפאה במכבי. דבר/י עברית מדוברת, 1–3 משפטים, כמו בחדר אמיתי. אל תסביר שאתה מודל.",
+    "זה סימולטור אימון למנהלים רפואיים במכבי שמנהלים רופאים. דבר/י עברית מדוברת, 1–3 משפטים, כמו בחדר אמיתי. אל תסביר שאתה מודל.",
+    managerLine,
     meeting,
     `הנושא האמיתי של השיחה (רק אחרי נימוסין/היכרות): ${scenario.title}. ${scenario.tension}`,
     `נתון מהמרפאה: ${scenario.clinicNote}`,

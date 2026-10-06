@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { DebriefPanel } from "@/components/debrief-panel";
 import { DoctorPortrait } from "@/components/doctor-portrait";
+import { useProfile } from "@/components/profile-provider";
 import { Transcript } from "@/components/transcript";
 import { VoiceAnalysis } from "@/components/voice-analysis";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -92,6 +93,7 @@ export function PracticeSession({
   scenario: Scenario;
   persona: Persona;
 }) {
+  const { profile } = useProfile();
   const [status, setStatus] = useState<SessionStatus>("thinking");
   const [turns, setTurns] = useState<TranscriptTurn[]>([]);
   const [interim, setInterim] = useState("");
@@ -186,7 +188,7 @@ export function PracticeSession({
       setStatus("thinking");
 
       const snapshot = stateRef.current;
-      const local = generateDoctorReply(scenario, snapshot, trimmed);
+      const local = generateDoctorReply(scenario, snapshot, trimmed, profile);
       let result: DoctorTurnResult = local;
       const history: TranscriptTurn[] = [
         ...turnsRef.current,
@@ -205,6 +207,7 @@ export function PracticeSession({
             persona,
             history,
             kind: "turn",
+            manager: profile,
           }),
         });
         if (response.ok) {
@@ -237,7 +240,7 @@ export function PracticeSession({
       ]);
       await spoken;
     },
-    [nextId, persona, scenario, speakDoctor],
+    [nextId, persona, profile, scenario, speakDoctor],
   );
 
   const stopListening = useCallback(() => {
@@ -357,7 +360,7 @@ export function PracticeSession({
 
     void (async () => {
       onVoices();
-      const local = generateOpening(scenario);
+      const local = generateOpening(scenario, profile);
       let result = local;
       try {
         const response = await fetch("/api/doctor-reply", {
@@ -369,6 +372,7 @@ export function PracticeSession({
             persona,
             history: [],
             kind: "opening",
+            manager: profile,
           }),
         });
         if (response.ok) {
@@ -552,7 +556,7 @@ export function PracticeSession({
                   lines={
                     beat === "issue"
                       ? scenario.sampleLines
-                      : rapportSamples(scenario.firstMeeting)
+                      : rapportSamples(scenario.firstMeeting, profile?.gender)
                   }
                   disabled={busy}
                   onSample={(line) => void submitManagerText(line)}

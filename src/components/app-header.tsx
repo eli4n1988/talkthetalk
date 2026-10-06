@@ -1,6 +1,12 @@
+"use client";
+
 import Link from "next/link";
+import { useProfile } from "@/components/profile-provider";
 
 export function AppHeader() {
+  const { ready, profile } = useProfile();
+  const showNav = ready && Boolean(profile);
+
   return (
     <header className="sticky top-0 z-30 border-b border-border bg-white/90 backdrop-blur-md">
       <div className="h-1 w-full bg-header-bar" />
@@ -20,14 +26,18 @@ export function AppHeader() {
             סימולצית שיחה למנהלים רפואיים
           </span>
         </Link>
-        <nav className="flex items-center gap-0.5 text-sm sm:col-start-3 sm:justify-self-end">
-          <Link href="/" className="nav-pill">
-            תרחישים
-          </Link>
-          <Link href="/admin" className="nav-pill">
-            ניהול
-          </Link>
-        </nav>
+        {showNav ? (
+          <nav className="flex items-center gap-0.5 text-sm sm:col-start-3 sm:justify-self-end">
+            <Link href="/" className="nav-pill">
+              תרחישים
+            </Link>
+            <Link href="/admin" className="nav-pill">
+              ניהול
+            </Link>
+          </nav>
+        ) : (
+          <span className="sm:col-start-3" aria-hidden />
+        )}
       </div>
     </header>
   );

@@ -5,6 +5,7 @@ import {
   generateOpening,
 } from "@/lib/dialogue";
 import { getPersona, getScenario } from "@/lib/content";
+import { parseManagerProfile, type ManagerProfile } from "@/lib/profile";
 import type {
   DialoguePhase,
   DialogueState,
@@ -24,6 +25,7 @@ type RequestBody = {
   persona?: Persona;
   history?: TranscriptTurn[];
   kind?: "opening" | "turn";
+  manager?: ManagerProfile | null;
 };
 
 export async function POST(request: Request) {
@@ -31,20 +33,24 @@ export async function POST(request: Request) {
   const scenario = body.scenario ?? getScenario(body.scenarioId);
   const kind = body.kind === "opening" ? "opening" : "turn";
   const history = body.history ?? [];
+  const manager = parseManagerProfile(
+    body.manager ? JSON.stringify(body.manager) : null,
+  );
   const persona =
     body.persona ??
     (scenario ? getPersona(scenario.personaId) : undefined);
 
   let local: DoctorTurnResult | null = null;
   if (kind === "opening" && scenario) {
-    local = generateOpening(scenario);
+    local = generateOpening(scenario, manager);
   } else if (scenario && body.state && body.userText != null) {
-    local = generateDoctorReply(scenario, body.state, body.userText);
+    local = generateDoctorReply(scenario, body.state, body.userText, manager);
   } else if (body.state && body.userText != null) {
     local = generateDoctorReplyByScenarioId(
       body.scenarioId,
       body.state,
       body.userText,
+      manager,
     );
   }
 
@@ -66,6 +72,7 @@ export async function POST(request: Request) {
           : (body.state?.beat ?? local.state.beat),
       history,
       kind,
+      manager,
     });
     if (ai) {
       const beat =

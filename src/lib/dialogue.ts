@@ -1,4 +1,9 @@
 import { getPersona, getScenario } from "@/lib/content";
+import {
+  managerStanding,
+  managerYou,
+  type ManagerProfile,
+} from "@/lib/profile";
 import type {
   CoachingSignal,
   DialoguePhase,
@@ -57,13 +62,16 @@ export function detectSignals(
   return found;
 }
 
-export function generateOpening(scenario: Scenario): DoctorTurnResult {
+export function generateOpening(
+  scenario: Scenario,
+  manager?: ManagerProfile | null,
+): DoctorTurnResult {
   const persona = getPersona(scenario.personaId);
   return {
     reply: persona
       ? scenario.firstMeeting
-        ? introOpening(persona)
-        : nicetyOpening(persona)
+        ? introOpening(persona, manager)
+        : nicetyOpening(persona, manager)
       : scenario.openingLine,
     signalsThisTurn: [],
     source: "local",
@@ -75,6 +83,7 @@ export function generateDoctorReply(
   scenario: Scenario,
   state: DialogueState,
   userText: string,
+  manager?: ManagerProfile | null,
 ): DoctorTurnResult {
   const persona = getPersona(scenario.personaId);
   const signalsThisTurn = detectSignals(userText, scenario);
@@ -113,6 +122,7 @@ export function generateDoctorReply(
   const reply = buildLocalReply({
     scenario,
     persona,
+    manager,
     userText,
     beat: nextBeat,
     previousBeat: state.beat,
@@ -146,10 +156,11 @@ export function generateDoctorReplyByScenarioId(
   scenarioId: string,
   state: DialogueState,
   userText: string,
+  manager?: ManagerProfile | null,
 ): DoctorTurnResult | null {
   const scenario = getScenario(scenarioId);
   if (!scenario) return null;
-  return generateDoctorReply(scenario, state, userText);
+  return generateDoctorReply(scenario, state, userText, manager);
 }
 
 function nextBeatFromTurn(args: {
@@ -180,6 +191,7 @@ function jumpedToIssue(text: string, signals: CoachingSignal[]): boolean {
 function buildLocalReply(args: {
   scenario: Scenario;
   persona: Persona | undefined;
+  manager?: ManagerProfile | null;
   userText: string;
   beat: SocialBeat;
   previousBeat: SocialBeat;
@@ -187,7 +199,7 @@ function buildLocalReply(args: {
   usedIndexes: number[];
 }): string {
   if (isMostlyLatin(args.userText) && !containsHebrew(args.userText)) {
-    return latinPushback(args.scenario);
+    return latinPushback(args.manager, args.persona);
   }
 
   const echo = quoteSnippet(args.userText);
@@ -195,15 +207,15 @@ function buildLocalReply(args: {
     return joinEcho(
       echo,
       args.persona
-        ? introOpening(args.persona)
-        : "נעים להכיר. מי עומד מולי, ומה התפקיד במרפאה?",
+        ? introOpening(args.persona, args.manager)
+        : `נעים להכיר. מי ${managerStanding(args.manager?.gender ?? "male")} מולי, ומה התפקיד במרפאה?`,
     );
   }
   if (args.beat === "greeting") {
     return joinEcho(
       echo,
       args.persona
-        ? nicetyOpening(args.persona)
+        ? nicetyOpening(args.persona, args.manager)
         : "שלום, מה נשמע? נדבר על העניין עוד רגע.",
     );
   }
@@ -219,29 +231,38 @@ function buildLocalReply(args: {
   return echo ? `אמרת ${echo}. ${canned}` : canned;
 }
 
-function nicetyOpening(persona: Persona): string {
+function nicetyOpening(
+  persona: Persona,
+  manager?: ManagerProfile | null,
+): string {
+  const you = managerYou(manager?.gender ?? "male");
+  const tell = manager?.gender === "female" ? "תגידי" : "תגיד";
   if (persona.gender === "female" && persona.ageBand === "veteran") {
-    return "שלום, מה נשמע? רגע נדיר בלי ילד בוכה מאחורי הדלת. איך אתה?";
+    return `שלום, מה נשמע? רגע נדיר בלי ילד בוכה מאחורי הדלת. איך ${you}?`;
   }
   if (persona.gender === "female") {
     return "היי, מה שלומך? בוקר ארוך אצלי. נשב רגע לפני שנצלול?";
   }
   if (persona.ageBand === "veteran") {
-    return "שלום. מה נשמע? היה בוקר ארוך. תגיד לי קודם איך אתה, אחר כך נראה למה ביקשת שנשב.";
+    return `שלום. מה נשמע? היה בוקר ארוך. ${tell} לי קודם איך ${you}, אחר כך נראה למה ביקשת שנשב.`;
   }
   return "שלום, מה קורה? יום לחוץ. קודם מה נשמע אצלך?";
 }
 
-function introOpening(persona: Persona): string {
-  const role =
-    persona.doctorType === "pediatrician" ? "רופאת ילדים" : "רופא משפחה";
+function introOpening(
+  persona: Persona,
+  manager?: ManagerProfile | null,
+): string {
   const female = persona.gender === "female";
   const roleText = female
     ? persona.doctorType === "pediatrician"
       ? "רופאת ילדים"
       : "רופאת משפחה"
-    : role;
-  return `שלום, אני ${persona.name}. ${roleText} ב${persona.clinic}, ${persona.yearsInClinic} שנים. נעים להכיר — עוד לא ישבנו ככה באמת. מי עומד מולי, ומה התפקיד שלך אצלנו?`;
+    : persona.doctorType === "pediatrician"
+      ? "רופא ילדים"
+      : "רופא משפחה";
+  const standing = managerStanding(manager?.gender ?? "male");
+  return `שלום, אני ${persona.name}. ${roleText} ב${persona.clinic}, ${persona.yearsInClinic} שנים. נעים להכיר — עוד לא ישבנו ככה באמת. מי ${standing} מולי, ומה התפקיד שלך אצלנו?`;
 }
 
 function quoteSnippet(text: string): string {
@@ -330,8 +351,13 @@ function pickReply(
   return choice.line;
 }
 
-function latinPushback(scenario: Scenario): string {
-  const female = getPersona(scenario.personaId)?.gender === "female";
+function latinPushback(
+  manager?: ManagerProfile | null,
+  persona?: Persona,
+): string {
+  const female =
+    manager?.gender === "female" ||
+    (!manager && persona?.gender === "female");
   return female
     ? "דברי אליי בעברית. זו המרפאה שלי, וכך מתנהלת כאן שיחה."
     : "דבר אליי בעברית. זו המרפאה שלי, וכך מתנהלת כאן שיחה.";

@@ -12,6 +12,7 @@ import {
   type ModelReply,
 } from "@/lib/ai/prompt";
 import type { Persona, Scenario, SocialBeat, TranscriptTurn } from "@/lib/types";
+import type { ManagerProfile } from "@/lib/profile";
 
 export async function generateAiDoctorReply(args: {
   scenario: Scenario;
@@ -19,6 +20,7 @@ export async function generateAiDoctorReply(args: {
   beat: SocialBeat;
   history: TranscriptTurn[];
   kind: "opening" | "turn";
+  manager?: ManagerProfile | null;
 }): Promise<{ reply: ModelReply; source: ChatProviderId } | null> {
   const order: ChatProviderId[] = [];
   const preferred = preferredChatProvider();
@@ -31,6 +33,7 @@ export async function generateAiDoctorReply(args: {
     scenario: args.scenario,
     persona: args.persona,
     beat: args.beat,
+    manager: args.manager,
   });
   const userKickoff =
     args.kind === "opening"
