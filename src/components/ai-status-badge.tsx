@@ -27,7 +27,7 @@ export function AiStatusBadge() {
 
   const chatLabel =
     status.chat === "gemini"
-      ? "Gemini 2.5 Flash"
+      ? "Gemini Flash"
       : status.chat === "openai"
         ? "ChatGPT (GPT-4o)"
         : status.chat === "claude"

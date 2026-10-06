@@ -78,28 +78,43 @@ async function completeGemini(args: {
     contents.push({ role: "user", parts: [{ text: args.userKickoff }] });
   }
 
-  const response = await fetchWithTimeout(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(key)}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: args.system }] },
-        contents,
-        generationConfig: {
-          temperature: 0.7,
-          maxOutputTokens: 280,
-          responseMimeType: "application/json",
-        },
-      }),
+  const models = [
+    "gemini-3.8-flash",
+    "gemini-flash-latest",
+    "gemini-2.5-flash",
+  ];
+  const body = JSON.stringify({
+    systemInstruction: { parts: [{ text: args.system }] },
+    contents,
+    generationConfig: {
+      temperature: 0.7,
+      maxOutputTokens: 280,
+      responseMimeType: "application/json",
     },
-    12000,
-  );
-  if (!response?.ok) return null;
-  const data = (await response.json()) as {
-    candidates?: { content?: { parts?: { text?: string }[] } }[];
-  };
-  return data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? null;
+  });
+
+  for (const model of models) {
+    const response = await fetchWithTimeout(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body,
+      },
+      12000,
+    );
+    if (!response?.ok) continue;
+    const data = (await response.json()) as {
+      candidates?: { content?: { parts?: { text?: string }[] } }[];
+    };
+    const text = data.candidates?.[0]?.content?.parts
+      ?.map((part) => part.text)
+      .filter(Boolean)
+      .join("\n")
+      .trim();
+    if (text) return text;
+  }
+  return null;
 }
 
 async function completeOpenAI(args: {

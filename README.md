@@ -56,9 +56,9 @@ GEMINI_API_KEY=AIza...your-key...
 
 אם כבר יש מפתח מ-Vertex / Google Cloud, אפשר במקום זה `GOOGLE_API_KEY` או `GOOGLE_GENERATIVE_AI_API_KEY` — האפליקציה קוראת את שלושתם.
 
-Gemini מספיק לבד: השיחה רצה על **Gemini 2.5 Flash**, וההשמעה על **Gemini TTS** בעברית (`he-IL`, קולות Charon / Kore / Puck / Aoede לפי מין וותק הרופא).
+Gemini מספיק לבד: השיחה רצה על **Gemini 3.8 Flash** (עם נפילה ל-`gemini-flash-latest` / 2.5), וההשמעה על **Gemini TTS** בעברית (`he-IL`, קולות Charon / Kore / Puck / Aoede לפי מין וותק הרופא).
 
-אם המפתח חדש ולא עובד, ב-[Google AI Studio](https://aistudio.google.com/) בודקים שהמודלים `gemini-2.5-flash` ו-TTS זמינים לפרויקט, ושיש מכסה פעילה.
+אם המפתח חדש ולא עובד, ב-[Google AI Studio](https://aistudio.google.com/) בודקים שיש מכסה פעילה. מפתחות חדשים צריכים `gemini-3.8-flash` — האפליקציה מנסה אותו קודם.
 
 ### 3. מפתח OpenAI (גיבוי)
 
@@ -100,7 +100,7 @@ OPENAI_API_KEY=sk-...
 
 | מה שמופיע | משמעות |
 | --- | --- |
-| השיחה: Gemini 2.5 Flash. השמע: קול Gemini העברי. | Gemini פעיל — זה המצב המומלץ |
+| השיחה: Gemini Flash. השמע: קול Gemini העברי. | Gemini פעיל — זה המצב המומלץ |
 | השיחה: ChatGPT (GPT-4o). השמע: קול GPT-4o mini TTS. | רק OpenAI פעיל |
 | השיחה: מנוע מקומי. השמע: קול דפדפן | אין מפתח, או שהשרת לא הופעל מחדש |
 
