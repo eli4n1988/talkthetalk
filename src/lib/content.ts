@@ -4,6 +4,7 @@ import type {
   DoctorType,
   Persona,
   Scenario,
+  SocialBeat,
 } from "@/lib/types";
 
 export const PERSONAS: Persona[] = [
@@ -75,6 +76,7 @@ export const SCENARIOS: Scenario[] = [
       "שלושה מכתבי תלונה החודש על המתנה. התור בוקר גולש באופן קבוע עד הצהריים.",
     doctorType: "family",
     personaId: "mizrahi",
+    firstMeeting: false,
     openingLine:
       "שמעתי שהזמנת אותי בגלל התור. אני רופא שלושים ושתיים שנה במרפאה הזאת. מי שמחכה — שיחכה. אני לא עושה רפואת פס ייצור.",
     managerGoals: [
@@ -157,6 +159,7 @@ export const SCENARIOS: Scenario[] = [
       "המרפאה חורגת מממוצע המחוז ברישום אנטיביוטיקה לדרכי נשימה עליונות זה הרבעון השני.",
     doctorType: "pediatrician",
     personaId: "shapira",
+    firstMeeting: false,
     openingLine:
       "כשהורה יושב מולי עם ילד בוכה בלילה השלישי, את רוצה שאגיד ״זה וירוס, לכו הביתה״? אני מכירה את ההורים האלה עשרים ושמונה שנה. הם לא עוזבים בלי מרשם.",
     managerGoals: [
@@ -238,6 +241,7 @@ export const SCENARIOS: Scenario[] = [
       "ביקורת פנימית מצאה תיקים בלי תוכנית טיפול ובלי תיעוד שיחה על תופעות לוואי.",
     doctorType: "family",
     personaId: "cohen",
+    firstMeeting: true,
     openingLine:
       "יש לי ארבעים ושניים מטופלים היום. המזכירה חולה. ואתם רוצים תיעוד מושלם? תחליטו: אני מסתכל למטופל בעיניים, או אני מקליד?",
     managerGoals: [
@@ -319,6 +323,7 @@ export const SCENARIOS: Scenario[] = [
       "ארבע פניות לוועדת פניות בדבעון על ״לא הקשיבה״ ו״יצאנו בלי הסבר״.",
     doctorType: "pediatrician",
     personaId: "ben-david",
+    firstMeeting: false,
     openingLine:
       "שוב תלונה? אני במרפאה משש וחצי בבוקר. אם הורה כועס כי לא נתתי אנטיביוטיקה, זה לא אומר שאני רופאה גרועה. זה אומר שהוא רצה משהו אחר.",
     managerGoals: [
@@ -399,6 +404,7 @@ export const SCENARIOS: Scenario[] = [
       "המרפאה מתחת ליעד המחוזי בשלושה מדדים. ישיבת הנהלה בעוד שבועיים.",
     doctorType: "family",
     personaId: "mizrahi",
+    firstMeeting: false,
     openingLine:
       "המדדים האלה נבנו במגדל השן. המטופלים שלי לא נכנסים לאקסל שלכם. גברת בת שמונים עם שבעה כדורים לא תבוא לממוגרפיה כי מישהו במחוז צבע אותה באדום.",
     managerGoals: [
@@ -519,3 +525,24 @@ export const PHASE_LABELS: Record<DialoguePhase, string> = {
   challenge: "אתגר",
   soften: "ריכוך",
 };
+
+export const BEAT_LABELS: Record<SocialBeat, string> = {
+  greeting: "נימוסין",
+  intro: "היכרות",
+  issue: "הנושא",
+};
+
+export function rapportSamples(firstMeeting: boolean): string[] {
+  if (firstMeeting) {
+    return [
+      "שלום, נעים מאוד. אני מנהל/ת המרפאה — עוד לא הספקנו להכיר באמת.",
+      "אני חדש/ה איתך בחדר. ספר/י לי קצת עליך, ואז נדבר על העבודה.",
+      "נעים להכיר. אני כאן כדי לעבוד איתך, לא מעליך.",
+    ];
+  }
+  return [
+    "שלום, מה נשמע? היה בוקר עמוס?",
+    "טוב לראות אותך. איך היום עד עכשיו?",
+    "קודם כל שאלתי לשלומך. יש לי נושא, אבל לא נפתח בזה.",
+  ];
+}

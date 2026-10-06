@@ -29,6 +29,7 @@ import {
   voicePortrait,
 } from "@/lib/content";
 import { isSeedScenario } from "@/lib/catalog";
+import { generateOpening } from "@/lib/dialogue";
 import { speakHebrew, stopSpeaking } from "@/lib/speech";
 import type { AgeBand, DoctorType, VoiceGender } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -75,7 +76,7 @@ export function ScenarioPicker() {
     stopSpeaking();
     setPreviewId(scenarioId);
     await speakHebrew({
-      text: scenario.openingLine,
+      text: generateOpening(scenario).reply,
       rate: persona.voice.rate,
       pitch: persona.voice.pitch,
       gender: persona.gender,
@@ -204,6 +205,9 @@ export function ScenarioPicker() {
                     <Badge variant="outline">{styleLabel(persona.style)}</Badge>
                     <Badge variant="outline">
                       {genderLabel(persona.gender)} · {ageBandLabel(persona.ageBand)}
+                    </Badge>
+                    <Badge variant="outline">
+                      {scenario.firstMeeting ? "פגישה ראשונה" : "נימוסין ואז הנושא"}
                     </Badge>
                     {custom ? (
                       <Badge variant="outline">

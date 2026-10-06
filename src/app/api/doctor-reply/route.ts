@@ -1,95 +1,87 @@
-import { generateDoctorReply, generateDoctorReplyByScenarioId } from "@/lib/dialogue";
-import type { DialogueState, Scenario } from "@/lib/types";
+import { generateAiDoctorReply } from "@/lib/ai/chat";
+import {
+  generateDoctorReply,
+  generateDoctorReplyByScenarioId,
+  generateOpening,
+} from "@/lib/dialogue";
+import { getPersona } from "@/lib/content";
+import type {
+  DialogueState,
+  DoctorTurnResult,
+  Persona,
+  Scenario,
+  TranscriptTurn,
+} from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
 type RequestBody = {
   scenarioId: string;
-  userText: string;
-  state: DialogueState;
+  userText?: string;
+  state?: DialogueState;
   scenario?: Scenario;
+  persona?: Persona;
+  history?: TranscriptTurn[];
+  kind?: "opening" | "turn";
 };
 
 export async function POST(request: Request) {
   const body = (await request.json()) as RequestBody;
-  const local = body.scenario
-    ? generateDoctorReply(body.scenario, body.state, body.userText)
-    : generateDoctorReplyByScenarioId(
-        body.scenarioId,
-        body.state,
-        body.userText,
-      );
+  const scenario = body.scenario;
+  const kind = body.kind === "opening" ? "opening" : "turn";
+  const history = body.history ?? [];
+  const persona =
+    body.persona ??
+    (scenario ? getPersona(scenario.personaId) : undefined);
+
+  let local: DoctorTurnResult | null = null;
+  if (kind === "opening" && scenario) {
+    local = generateOpening(scenario);
+  } else if (scenario && body.state && body.userText != null) {
+    local = generateDoctorReply(scenario, body.state, body.userText);
+  } else if (body.state && body.userText != null) {
+    local = generateDoctorReplyByScenarioId(
+      body.scenarioId,
+      body.state,
+      body.userText,
+    );
+  }
 
   if (!local) {
     return Response.json({ error: "תרחיש לא נמצא" }, { status: 404 });
   }
 
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) {
+  if (!scenario || !persona) {
     return Response.json(local);
   }
 
   try {
-    const enhanced = await enhanceWithOpenAI({
-      apiKey,
-      userText: body.userText,
-      draft: local.reply,
-      scenarioId: body.scenarioId,
-      phase: local.state.phase,
+    const ai = await generateAiDoctorReply({
+      scenario,
+      persona,
+      beat:
+        kind === "opening"
+          ? local.state.beat
+          : (body.state?.beat ?? local.state.beat),
+      history,
+      kind,
     });
-    if (enhanced) {
-      return Response.json({ ...local, reply: enhanced, source: "openai" });
+    if (ai) {
+      const merged: DoctorTurnResult = {
+        ...local,
+        reply: ai.reply.reply,
+        source: ai.source,
+        state: {
+          ...local.state,
+          beat: ai.reply.beat,
+          phase: ai.reply.beat === "issue" ? ai.reply.phase : local.state.phase,
+        },
+      };
+      return Response.json(merged);
     }
   } catch {
-    // Local path always wins if the optional model fails.
+    // Local path always wins if the model fails.
   }
 
   return Response.json(local);
-}
-
-async function enhanceWithOpenAI(args: {
-  apiKey: string;
-  userText: string;
-  draft: string;
-  scenarioId: string;
-  phase: string;
-}): Promise<string | null> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 8000);
-
-  try {
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${args.apiKey}`,
-        "Content-Type": "application/json",
-      },
-      signal: controller.signal,
-      body: JSON.stringify({
-        model: "gpt-4o-mini",
-        temperature: 0.6,
-        max_tokens: 180,
-        messages: [
-          {
-            role: "system",
-            content:
-              "אתה רופא במרפאת מכבי בסימולטור אימון למנהלים. דבר בעברית מדוברת, משפט-שניים, בקול של הרופא. הישאר בדמות: התנגד, הטה, ורק אחר כך רכך אם המנהל טיפל יפה. אל תשבור אופי. אל תסביר שאתה מודל.",
-          },
-          {
-            role: "user",
-            content: `תרחיש: ${args.scenarioId}. שלב: ${args.phase}. דברי המנהל: ${args.userText}. טיוטת תשובה מקומית: ${args.draft}. כתוב תשובה קולית קצרה באותו אופי.`,
-          },
-        ],
-      }),
-    });
-
-    if (!response.ok) return null;
-    const data = (await response.json()) as {
-      choices?: { message?: { content?: string } }[];
-    };
-    const text = data.choices?.[0]?.message?.content?.trim();
-    return text || null;
-  } finally {
-    clearTimeout(timeout);
-  }
 }

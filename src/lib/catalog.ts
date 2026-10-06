@@ -119,6 +119,7 @@ export function createBlankScenario(persona: Persona): Scenario {
     clinicNote: "פרט קליני אחד מהמרפאה שישמש עוגן בשיחה.",
     doctorType: persona.doctorType,
     personaId: persona.id,
+    firstMeeting: false,
     openingLine:
       "למה הזמנת אותי? אם זו עוד שיחת מדדים, אני מעדיף/ה לחזור למטופלים.",
     managerGoals: [
@@ -187,6 +188,7 @@ export function sanitizeScenario(input: Scenario): Scenario {
     doctorType: persona.doctorType,
     personaId: persona.id,
     openingLine: input.openingLine.trim() || persona.stance,
+    firstMeeting: Boolean(input.firstMeeting),
     managerGoals: cleanList(input.managerGoals, 1),
     sampleLines: cleanList(input.sampleLines, 1),
     keywords: {

@@ -22,30 +22,38 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import {
   ageBandLabel,
+  BEAT_LABELS,
   doctorTypeLabel,
   genderLabel,
+  rapportSamples,
   styleLabel,
   voicePortrait,
 } from "@/lib/content";
 import { buildDebrief } from "@/lib/debrief";
-import { createDialogueState, generateDoctorReply } from "@/lib/dialogue";
+import {
+  createDialogueState,
+  generateDoctorReply,
+  generateOpening,
+} from "@/lib/dialogue";
 import {
   getSpeechRecognitionConstructor,
   getSpeechSupport,
   HEBREW_SPEECH_LANG,
   mapRecognitionError,
   requestMicAccess,
-  speakHebrew,
+  speakDoctorLine,
   stopSpeaking,
   type MicErrorCode,
 } from "@/lib/speech";
 import type {
+  AiProvider,
   DebriefNotes,
   DialogueState,
   DoctorTurnResult,
   Persona,
   Scenario,
   TranscriptTurn,
+  VoiceProvider,
 } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -85,15 +93,8 @@ export function PracticeSession({
   scenario: Scenario;
   persona: Persona;
 }) {
-  const [status, setStatus] = useState<SessionStatus>("speaking");
-  const [turns, setTurns] = useState<TranscriptTurn[]>(() => [
-    {
-      id: "doctor-opening",
-      role: "doctor",
-      text: scenario.openingLine,
-      phase: "resist",
-    },
-  ]);
+  const [status, setStatus] = useState<SessionStatus>("thinking");
+  const [turns, setTurns] = useState<TranscriptTurn[]>([]);
   const [interim, setInterim] = useState("");
   const [typed, setTyped] = useState("");
   const [error, setError] = useState<MicErrorCode | null>(null);
@@ -106,10 +107,21 @@ export function PracticeSession({
   const [showKeyboard, setShowKeyboard] = useState(false);
   const [autoListen, setAutoListen] = useState(true);
   const [lastManagerText, setLastManagerText] = useState("");
-  const [signals, setSignals] = useState(() => createDialogueState().signals);
-  const [phase, setPhase] = useState(() => createDialogueState().phase);
+  const [signals, setSignals] = useState(() =>
+    createDialogueState(scenario.firstMeeting).signals,
+  );
+  const [phase, setPhase] = useState(
+    () => createDialogueState(scenario.firstMeeting).phase,
+  );
+  const [beat, setBeat] = useState(
+    () => createDialogueState(scenario.firstMeeting).beat,
+  );
+  const [chatSource, setChatSource] = useState<AiProvider>("local");
+  const [voiceSource, setVoiceSource] = useState<VoiceProvider>("browser");
 
-  const stateRef = useRef<DialogueState>(createDialogueState());
+  const stateRef = useRef<DialogueState>(
+    createDialogueState(scenario.firstMeeting),
+  );
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const listeningRef = useRef(false);
   const endedRef = useRef(false);
@@ -117,7 +129,8 @@ export function PracticeSession({
   const turnCounter = useRef(0);
   const autoListenRef = useRef(true);
   const startListeningRef = useRef<() => Promise<void>>(async () => undefined);
-  const statusRef = useRef<SessionStatus>("speaking");
+  const statusRef = useRef<SessionStatus>("thinking");
+  const turnsRef = useRef<TranscriptTurn[]>([]);
 
   const nextId = useCallback((role: TranscriptTurn["role"]) => {
     turnCounter.current += 1;
@@ -138,15 +151,22 @@ export function PracticeSession({
   const speakDoctor = useCallback(
     async (text: string) => {
       setStatus((current) => (current === "ended" ? current : "speaking"));
-      const result = await speakHebrew({
+      const result = await speakDoctorLine({
         text,
         rate: persona.voice.rate,
         pitch: persona.voice.pitch,
         gender: persona.gender,
         ageBand: persona.ageBand,
+        personaId: persona.id,
       });
       if (endedRef.current) return;
-      if (!result.hebrewVoice) {
+      if (result.neural) {
+        setVoiceSource(result.provider === "openai" ? "openai" : "gemini");
+        setSupport((current) => ({ ...current, hebrewVoice: true }));
+        setError((current) =>
+          current === "no-hebrew-voice" ? null : current,
+        );
+      } else if (!result.hebrewVoice) {
         setSupport((current) => ({ ...current, hebrewVoice: false }));
         setError((current) =>
           current && current !== "no-hebrew-voice" ? current : "no-hebrew-voice",
@@ -162,7 +182,7 @@ export function PracticeSession({
         );
       }
     },
-    [persona.ageBand, persona.gender, persona.voice.pitch, persona.voice.rate, queueListen],
+    [persona, queueListen],
   );
 
   const submitManagerText = useCallback(
@@ -187,6 +207,10 @@ export function PracticeSession({
       const snapshot = stateRef.current;
       const local = generateDoctorReply(scenario, snapshot, trimmed);
       let result: DoctorTurnResult = local;
+      const history: TranscriptTurn[] = [
+        ...turnsRef.current,
+        { id: "pending-manager", role: "manager", text: trimmed },
+      ];
 
       try {
         const response = await fetch("/api/doctor-reply", {
@@ -197,6 +221,9 @@ export function PracticeSession({
             userText: trimmed,
             state: snapshot,
             scenario,
+            persona,
+            history,
+            kind: "turn",
           }),
         });
         if (response.ok) {
@@ -216,6 +243,8 @@ export function PracticeSession({
       stateRef.current = result.state;
       setSignals(result.state.signals);
       setPhase(result.state.phase);
+      setBeat(result.state.beat);
+      setChatSource(result.source);
       setTurns((current) => [
         ...current,
         {
@@ -227,7 +256,7 @@ export function PracticeSession({
       ]);
       await speakDoctor(result.reply);
     },
-    [nextId, scenario, speakDoctor],
+    [nextId, persona, scenario, speakDoctor],
   );
 
   const stopListening = useCallback(() => {
@@ -321,6 +350,10 @@ export function PracticeSession({
   }, [stopListening, submitManagerText]);
 
   useEffect(() => {
+    turnsRef.current = turns;
+  }, [turns]);
+
+  useEffect(() => {
     startListeningRef.current = startListening;
   }, [startListening]);
 
@@ -356,7 +389,42 @@ export function PracticeSession({
 
     void (async () => {
       onVoices();
-      await speakDoctor(scenario.openingLine);
+      const local = generateOpening(scenario);
+      let result = local;
+      try {
+        const response = await fetch("/api/doctor-reply", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            scenarioId: scenario.id,
+            scenario,
+            persona,
+            history: [],
+            kind: "opening",
+          }),
+        });
+        if (response.ok) {
+          const payload = (await response.json()) as DoctorTurnResult;
+          if (payload?.reply) result = payload;
+        }
+      } catch {
+        result = local;
+      }
+      if (endedRef.current) return;
+      stateRef.current = result.state;
+      setSignals(result.state.signals);
+      setPhase(result.state.phase);
+      setBeat(result.state.beat);
+      setChatSource(result.source);
+      setTurns([
+        {
+          id: nextId("doctor"),
+          role: "doctor",
+          text: result.reply,
+          phase: result.state.phase,
+        },
+      ]);
+      await speakDoctor(result.reply);
     })();
 
     window.speechSynthesis?.addEventListener("voiceschanged", onVoices);
@@ -407,6 +475,10 @@ export function PracticeSession({
             <Badge variant="outline">
               {genderLabel(persona.gender)} · {ageBandLabel(persona.ageBand)}
             </Badge>
+            <Badge variant="outline">
+              {scenario.firstMeeting ? "פגישה ראשונה" : "כבר עובדים יחד"}
+            </Badge>
+            <Badge variant="outline">{BEAT_LABELS[beat]}</Badge>
             <Badge className="animate-status-glow">{statusLabel}</Badge>
           </div>
         </div>
@@ -464,7 +536,9 @@ export function PracticeSession({
           {status === "thinking" ? (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Loader2 className="size-4 animate-spin" />
-              הרופא מנסח תשובה בעברית…
+              {turns.length === 0
+                ? "הרופא נכנס לחדר ומתחיל בנימוסין או בהיכרות…"
+                : "הרופא מנסח תשובה בעברית…"}
             </div>
           ) : null}
 
@@ -478,6 +552,7 @@ export function PracticeSession({
                   showKeyboard={showKeyboard}
                   typed={typed}
                   autoListen={autoListen}
+                  neuralVoice={voiceSource !== "browser"}
                   onStartListening={() => void startListening()}
                   onStopListening={stopListening}
                   onToggleKeyboard={() => setShowKeyboard((value) => !value)}
@@ -492,7 +567,11 @@ export function PracticeSession({
               </div>
               {showKeyboard ? (
                 <SampleLines
-                  lines={scenario.sampleLines}
+                  lines={
+                    beat === "issue"
+                      ? scenario.sampleLines
+                      : rapportSamples(scenario.firstMeeting)
+                  }
                   disabled={busy}
                   onSample={(line) => void submitManagerText(line)}
                 />
@@ -522,6 +601,12 @@ export function PracticeSession({
                     {persona.clinic} · {persona.yearsInClinic} שנות ותק
                   </p>
                   <p className="text-xs text-primary">{voicePortrait(persona)}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {scenario.firstMeeting
+                      ? "פגישה ראשונה · קודם היכרות"
+                      : "פגישה מוכרת · קודם נימוסין"}
+                    {chatSource !== "local" ? ` · ${chatSource}` : " · מנוע מקומי"}
+                  </p>
                 </div>
               </div>
             </CardHeader>
@@ -535,6 +620,7 @@ export function PracticeSession({
             liveText={status === "listening" ? interim : lastManagerText}
             totals={signals}
             phase={phase}
+            beat={beat}
             listening={status === "listening"}
             wordCount={wordCount}
           />
@@ -543,6 +629,13 @@ export function PracticeSession({
               <CardTitle className="text-base font-semibold">מה לנסות בשיחה</CardTitle>
             </CardHeader>
             <CardContent>
+              {beat !== "issue" ? (
+                <p className="mb-3 rounded-md border border-primary/20 bg-secondary px-3 py-2 text-sm leading-6">
+                  {scenario.firstMeeting
+                    ? "עכשיו היכרות: הציגו שם ותפקיד. הנושא הקליני יבוא אחרי שהרופא הכיר אתכם."
+                    : "עכשיו נימוסין קצרים. אל תפתחו במדד — שאלו לשלום, ואז עברו לנושא."}
+                </p>
+              ) : null}
               <ul className="flex flex-col gap-2 text-sm leading-6">
                 {scenario.managerGoals.map((goal) => (
                   <li
@@ -569,6 +662,7 @@ export function PracticeSession({
             showKeyboard={showKeyboard}
             typed={typed}
             autoListen={autoListen}
+            neuralVoice={voiceSource !== "browser"}
             onStartListening={() => void startListening()}
             onStopListening={stopListening}
             onToggleKeyboard={() => setShowKeyboard((value) => !value)}
@@ -703,6 +797,7 @@ function Controls({
   showKeyboard,
   typed,
   autoListen,
+  neuralVoice,
   onStartListening,
   onStopListening,
   onToggleKeyboard,
@@ -716,6 +811,7 @@ function Controls({
   showKeyboard: boolean;
   typed: string;
   autoListen: boolean;
+  neuralVoice: boolean;
   onStartListening: () => void;
   onStopListening: () => void;
   onToggleKeyboard: () => void;
@@ -778,6 +874,7 @@ function Controls({
               <>
                 <Volume2 className="size-3.5" />
                 קול הרופא פעיל
+                {neuralVoice ? " · טבעי" : ""}
               </>
             ) : (
               <>

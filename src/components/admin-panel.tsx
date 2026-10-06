@@ -38,6 +38,7 @@ import {
   genderLabel,
   styleLabel,
 } from "@/lib/content";
+import { generateOpening } from "@/lib/dialogue";
 import { speakHebrew, stopSpeaking } from "@/lib/speech";
 import type {
   CoachingSignal,
@@ -181,6 +182,9 @@ export function AdminPanel() {
                   <Badge variant="outline">
                     {isSeedScenario(scenario.id) ? "מובנה" : "מותאם"}
                   </Badge>
+                  <Badge variant="outline">
+                    {scenario.firstMeeting ? "פגישה ראשונה" : "נימוסין"}
+                  </Badge>
                 </div>
                 <CardTitle>{scenario.title}</CardTitle>
                 <CardDescription className="text-start leading-6">
@@ -214,7 +218,7 @@ export function AdminPanel() {
                   className="hover-lift"
                   onClick={() =>
                     void speakHebrew({
-                      text: scenario.openingLine,
+                      text: generateOpening(scenario).reply,
                       rate: persona.voice.rate,
                       pitch: persona.voice.pitch,
                       gender: persona.gender,
@@ -342,6 +346,20 @@ function ScenarioEditor({
           {persona.name} · {styleLabel(persona.style)} · הקול: קצב {persona.voice.rate}, גובה{" "}
           {persona.voice.pitch}
         </p>
+        <label className="flex items-start gap-3 rounded-xl border border-border bg-secondary/40 px-3 py-3 text-sm leading-6">
+          <input
+            type="checkbox"
+            className="mt-1 size-4 accent-primary"
+            checked={Boolean(draft.firstMeeting)}
+            onChange={(event) => update({ firstMeeting: event.target.checked })}
+          />
+          <span>
+            <span className="font-medium">פגישה ראשונה</span>
+            <span className="block text-muted-foreground">
+              מסומן: היכרות (שם, תפקיד) לפני הנושא. לא מסומן: נימוסין קצרים ואז הנושא.
+            </span>
+          </span>
+        </label>
         <Field label="המתח בחדר">
           <Textarea
             value={draft.tension}
@@ -356,7 +374,7 @@ function ScenarioEditor({
             className="min-h-16"
           />
         </Field>
-        <Field label="משפט הפתיחה של הרופא (נשמע בהתחלת האימון)">
+        <Field label="כיוון לנושא המרכזי (אחרי נימוסין או היכרות)">
           <Textarea
             value={draft.openingLine}
             onChange={(event) => update({ openingLine: event.target.value })}

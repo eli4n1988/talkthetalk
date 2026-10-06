@@ -1,3 +1,4 @@
+import { AiStatusBadge } from "@/components/ai-status-badge";
 import { ScenarioPicker } from "@/components/scenario-picker";
 
 export default function HomePage() {
@@ -17,17 +18,20 @@ export default function HomePage() {
           className="stagger-in mt-4 max-w-2xl text-[15px] leading-7 text-muted-foreground sm:text-base"
           style={{ animationDelay: "140ms" }}
         >
-          ברירת המחדל היא שיחה קולית: הרופא או הרופאה פותחים בקול — גבר או אישה,
-          ותיק או צעיר בקריירה — ואז המיקרופון נפתח אליכם. בזמן שאתם מדברים
-          בעברית, המערכת מזהה אמפתיה, נתון, שותפות, הוראה וביקורת.
+          הרופא עונה למה שאמרתם ממש עכשיו — לא ממשפטים שמורים. בדרך כלל השיחה
+          נפתחת בנימוסין קצרים. אם התרחיש מסומן כפגישה ראשונה, קודם מציגים את
+          עצמכם, ורק אז עוברים לנושא.
         </p>
         <p
           className="stagger-in mt-3 max-w-2xl text-sm leading-6 text-muted-foreground"
           style={{ animationDelay: "200ms" }}
         >
-          הקול עובד ב-Chrome או Edge עם מיקרופון. בלי מיקרופון אפשר להקליד תור
-          בעברית. בניהול אפשר לערוך כל תרחיש ולהוסיף שיחות חדשות למכשיר זה.
+          הקול המומלץ הוא Gemini TTS בעברית ישראלית. בלי מפתח המערכת נופלת
+          למנוע מקומי ולקול הדפדפן. בניהול אפשר לסמן פגישה ראשונה לכל תרחיש.
         </p>
+        <div className="stagger-in mt-4" style={{ animationDelay: "260ms" }}>
+          <AiStatusBadge />
+        </div>
       </section>
       <ScenarioPicker />
     </div>

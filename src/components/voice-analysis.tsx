@@ -1,12 +1,13 @@
 "use client";
 
-import { PHASE_LABELS, SIGNAL_LABELS } from "@/lib/content";
+import { BEAT_LABELS, PHASE_LABELS, SIGNAL_LABELS } from "@/lib/content";
 import { detectSignals } from "@/lib/dialogue";
 import type {
   CoachingSignal,
   DialoguePhase,
   Scenario,
   SignalCounts,
+  SocialBeat,
 } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -23,6 +24,7 @@ export function VoiceAnalysis({
   liveText,
   totals,
   phase,
+  beat,
   listening,
   wordCount,
 }: {
@@ -30,6 +32,7 @@ export function VoiceAnalysis({
   liveText: string;
   totals: SignalCounts;
   phase: DialoguePhase;
+  beat: SocialBeat;
   listening: boolean;
   wordCount: number;
 }) {
@@ -51,7 +54,8 @@ export function VoiceAnalysis({
           </p>
         </div>
         <span className="rounded-full bg-secondary px-2.5 py-1 text-[11px] font-medium text-secondary-foreground">
-          שלב הרופא: {PHASE_LABELS[phase]}
+          {BEAT_LABELS[beat]}
+          {beat === "issue" ? ` · ${PHASE_LABELS[phase]}` : ""}
         </span>
       </div>
 

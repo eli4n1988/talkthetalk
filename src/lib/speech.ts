@@ -22,6 +22,7 @@ export type SpeakArgs = {
 
 const HEBREW_LANG = "he-IL";
 let speakGeneration = 0;
+let currentAudio: HTMLAudioElement | null = null;
 
 export function getSpeechRecognitionConstructor(): (new () => SpeechRecognition) | null {
   if (typeof window === "undefined") return null;
@@ -271,8 +272,81 @@ function speakChunk(args: {
 
 export function stopSpeaking() {
   speakGeneration += 1;
-  if (typeof window === "undefined" || !window.speechSynthesis) return;
-  window.speechSynthesis.cancel();
+  if (typeof window === "undefined") return;
+  try {
+    currentAudio?.pause();
+  } catch {
+    /* ignore */
+  }
+  currentAudio = null;
+  if (window.speechSynthesis) window.speechSynthesis.cancel();
+}
+
+export function playNeuralAudio(blob: Blob): Promise<boolean> {
+  const myGen = ++speakGeneration;
+  return new Promise((resolve) => {
+    if (typeof window === "undefined") {
+      resolve(false);
+      return;
+    }
+    try {
+      currentAudio?.pause();
+    } catch {
+      /* ignore */
+    }
+    const url = URL.createObjectURL(blob);
+    const audio = new Audio(url);
+    currentAudio = audio;
+    let settled = false;
+    const finish = (value: boolean) => {
+      if (settled) return;
+      settled = true;
+      URL.revokeObjectURL(url);
+      if (currentAudio === audio) currentAudio = null;
+      resolve(value);
+    };
+    audio.onended = () => finish(myGen === speakGeneration);
+    audio.onerror = () => finish(false);
+    const playResult = audio.play();
+    if (playResult && typeof playResult.then === "function") {
+      playResult.catch(() => finish(false));
+    }
+  });
+}
+
+export async function speakDoctorLine(args: SpeakArgs & { personaId: string }): Promise<{
+  spoke: boolean;
+  hebrewVoice: boolean;
+  neural: boolean;
+  provider?: "gemini" | "openai";
+}> {
+  try {
+    const response = await fetch("/api/doctor-voice", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        text: args.text,
+        personaId: args.personaId,
+      }),
+    });
+    if (response.ok && response.status !== 204) {
+      const blob = await response.blob();
+      if (blob.size > 80) {
+        const played = await playNeuralAudio(blob);
+        if (played) {
+          const header = response.headers.get("X-Voice-Provider");
+          const provider =
+            header === "openai" || header === "gemini" ? header : "gemini";
+          return { spoke: true, hebrewVoice: true, neural: true, provider };
+        }
+      }
+    }
+  } catch {
+    /* fall through to browser speech */
+  }
+
+  const browser = await speakHebrew(args);
+  return { ...browser, neural: false };
 }
 
 export async function requestMicAccess(): Promise<MicErrorCode | null> {
