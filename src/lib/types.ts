@@ -1,6 +1,7 @@
 export type DoctorType = "family" | "pediatrician";
 export type PersonaStyle = "stubborn-veteran" | "defensive-overwhelmed";
 export type VoiceGender = "male" | "female";
+export type AgeBand = "veteran" | "early-career";
 export type DialoguePhase = "resist" | "deflect" | "challenge" | "soften";
 export type CoachingSignal =
   | "empathy"
@@ -16,6 +17,7 @@ export type Persona = {
   doctorType: DoctorType;
   style: PersonaStyle;
   gender: VoiceGender;
+  ageBand: AgeBand;
   clinic: string;
   portraitInitials: string;
   stance: string;

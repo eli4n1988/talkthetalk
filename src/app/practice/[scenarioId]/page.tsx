@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
-import { PracticeSession } from "@/components/practice-session";
-import { getPersona, getScenario, SCENARIOS } from "@/lib/content";
+import { PracticeLoader } from "@/components/practice-loader";
+import { getScenario, SCENARIOS } from "@/lib/content";
+
+export const dynamicParams = true;
 
 export function generateStaticParams() {
   return SCENARIOS.map((scenario) => ({ scenarioId: scenario.id }));
@@ -27,10 +28,5 @@ export default async function PracticePage({
   params: Promise<{ scenarioId: string }>;
 }) {
   const { scenarioId } = await params;
-  const scenario = getScenario(scenarioId);
-  if (!scenario) notFound();
-  const persona = getPersona(scenario.personaId);
-  if (!persona) notFound();
-
-  return <PracticeSession scenario={scenario} persona={persona} />;
+  return <PracticeLoader scenarioId={scenarioId} />;
 }

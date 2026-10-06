@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  AudioLines,
   Keyboard,
   Loader2,
   Mic,
@@ -13,12 +14,19 @@ import {
 } from "lucide-react";
 import { DebriefPanel } from "@/components/debrief-panel";
 import { Transcript } from "@/components/transcript";
+import { VoiceAnalysis } from "@/components/voice-analysis";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { doctorTypeLabel, styleLabel } from "@/lib/content";
+import {
+  ageBandLabel,
+  doctorTypeLabel,
+  genderLabel,
+  styleLabel,
+  voicePortrait,
+} from "@/lib/content";
 import { buildDebrief } from "@/lib/debrief";
 import { createDialogueState, generateDoctorReply } from "@/lib/dialogue";
 import {
@@ -58,7 +66,7 @@ const ERROR_COPY: Record<MicErrorCode, { title: string; body: string }> = {
   },
   "no-speech": {
     title: "לא זוהה דיבור",
-    body: "נסו שוב קרוב למיקרופון, או כתבו את המשפט בעברית אם הסביבה שקטה מדי — או בלי מיקרופון.",
+    body: "נסו שוב קרוב למיקרופון, או כתבו את המשפט בעברית אם הסביבה שקטה מדי.",
   },
   "audio-capture": {
     title: "לא נמצא מיקרופון",
@@ -77,7 +85,7 @@ export function PracticeSession({
   scenario: Scenario;
   persona: Persona;
 }) {
-  const [status, setStatus] = useState<SessionStatus>("ready");
+  const [status, setStatus] = useState<SessionStatus>("speaking");
   const [turns, setTurns] = useState<TranscriptTurn[]>(() => [
     {
       id: "doctor-opening",
@@ -95,7 +103,11 @@ export function PracticeSession({
     hebrewVoice: false,
   });
   const [debrief, setDebrief] = useState<DebriefNotes | null>(null);
-  const [showKeyboard, setShowKeyboard] = useState(true);
+  const [showKeyboard, setShowKeyboard] = useState(false);
+  const [autoListen, setAutoListen] = useState(true);
+  const [lastManagerText, setLastManagerText] = useState("");
+  const [signals, setSignals] = useState(() => createDialogueState().signals);
+  const [phase, setPhase] = useState(() => createDialogueState().phase);
 
   const stateRef = useRef<DialogueState>(createDialogueState());
   const recognitionRef = useRef<SpeechRecognition | null>(null);
@@ -103,10 +115,24 @@ export function PracticeSession({
   const endedRef = useRef(false);
   const pendingFinalRef = useRef("");
   const turnCounter = useRef(0);
+  const autoListenRef = useRef(true);
+  const startListeningRef = useRef<() => Promise<void>>(async () => undefined);
+  const statusRef = useRef<SessionStatus>("speaking");
 
   const nextId = useCallback((role: TranscriptTurn["role"]) => {
     turnCounter.current += 1;
     return `${role}-${turnCounter.current}`;
+  }, []);
+
+  const queueListen = useCallback(() => {
+    window.setTimeout(() => {
+      if (endedRef.current) return;
+      if (!autoListenRef.current) {
+        setStatus((current) => (current === "ended" ? current : "ready"));
+        return;
+      }
+      void startListeningRef.current();
+    }, 280);
   }, []);
 
   const speakDoctor = useCallback(
@@ -117,6 +143,7 @@ export function PracticeSession({
         rate: persona.voice.rate,
         pitch: persona.voice.pitch,
         gender: persona.gender,
+        ageBand: persona.ageBand,
       });
       if (endedRef.current) return;
       if (!result.hebrewVoice) {
@@ -125,13 +152,17 @@ export function PracticeSession({
           current && current !== "no-hebrew-voice" ? current : "no-hebrew-voice",
         );
       }
-      setStatus((current) =>
-        current === "ended" || current === "listening" || current === "thinking"
-          ? current
-          : "ready",
-      );
+      if (autoListenRef.current) {
+        queueListen();
+      } else {
+        setStatus((current) =>
+          current === "ended" || current === "listening" || current === "thinking"
+            ? current
+            : "ready",
+        );
+      }
     },
-    [persona.gender, persona.voice.pitch, persona.voice.rate],
+    [persona.ageBand, persona.gender, persona.voice.pitch, persona.voice.rate, queueListen],
   );
 
   const submitManagerText = useCallback(
@@ -146,6 +177,7 @@ export function PracticeSession({
       setError(null);
       setInterim("");
       setTyped("");
+      setLastManagerText(trimmed);
       setTurns((current) => [
         ...current,
         { id: nextId("manager"), role: "manager", text: trimmed },
@@ -164,6 +196,7 @@ export function PracticeSession({
             scenarioId: scenario.id,
             userText: trimmed,
             state: snapshot,
+            scenario,
           }),
         });
         if (response.ok) {
@@ -181,6 +214,8 @@ export function PracticeSession({
       }
 
       stateRef.current = result.state;
+      setSignals(result.state.signals);
+      setPhase(result.state.phase);
       setTurns((current) => [
         ...current,
         {
@@ -200,23 +235,29 @@ export function PracticeSession({
     recognitionRef.current?.stop();
     recognitionRef.current = null;
     setInterim("");
-    if (status === "listening") setStatus("ready");
-  }, [status]);
+    if (statusRef.current === "listening") setStatus("ready");
+  }, []);
 
   const startListening = useCallback(async () => {
-    if (status === "thinking" || status === "ended") {
-      return;
-    }
+    if (endedRef.current || statusRef.current === "thinking") return;
     const Recognition = getSpeechRecognitionConstructor();
     if (!Recognition) {
       setError("no-recognition");
       setShowKeyboard(true);
+      setAutoListen(false);
+      autoListenRef.current = false;
+      setStatus("ready");
       return;
     }
     const permissionError = await requestMicAccess();
     if (permissionError) {
       setError(permissionError);
       setShowKeyboard(true);
+      if (permissionError === "permission-denied" || permissionError === "not-supported") {
+        setAutoListen(false);
+        autoListenRef.current = false;
+      }
+      setStatus("ready");
       return;
     }
 
@@ -252,6 +293,8 @@ export function PracticeSession({
       setError(mapped);
       if (mapped === "permission-denied" || mapped === "no-recognition") {
         setShowKeyboard(true);
+        setAutoListen(false);
+        autoListenRef.current = false;
       }
     };
     recognition.onend = () => {
@@ -273,8 +316,21 @@ export function PracticeSession({
       recognition.start();
     } catch {
       setError("no-recognition");
+      setStatus("ready");
     }
-  }, [status, stopListening, submitManagerText]);
+  }, [stopListening, submitManagerText]);
+
+  useEffect(() => {
+    startListeningRef.current = startListening;
+  }, [startListening]);
+
+  useEffect(() => {
+    statusRef.current = status;
+  }, [status]);
+
+  useEffect(() => {
+    autoListenRef.current = autoListen;
+  }, [autoListen]);
 
   const endSession = useCallback(() => {
     endedRef.current = true;
@@ -290,8 +346,12 @@ export function PracticeSession({
     const onVoices = () => {
       const detected = getSpeechSupport();
       setSupport(detected);
-      if (!detected.recognition) setError("no-recognition");
-      else if (!detected.synthesis) setError("not-supported");
+      if (!detected.recognition) {
+        setError("no-recognition");
+        setShowKeyboard(true);
+        setAutoListen(false);
+        autoListenRef.current = false;
+      }
     };
 
     void (async () => {
@@ -313,27 +373,30 @@ export function PracticeSession({
   const statusLabel = useMemo(() => {
     switch (status) {
       case "listening":
-        return "מאזינים לכם";
+        return "תורכם — המיקרופון פתוח";
       case "thinking":
         return "הרופא חושב…";
       case "speaking":
-        return "הרופא מדבר";
+        return "הרופא מדבר אליכם";
       case "ended":
         return "השיחה הסתיימה";
       default:
-        return "מוכנים לתור הבא";
+        return autoListen ? "ממתינים לתורכם" : "מוכנים לתור הבא";
     }
-  }, [status]);
+  }, [autoListen, status]);
 
   const busy = status === "thinking";
+  const wordCount = lastManagerText.trim()
+    ? lastManagerText.trim().split(/\s+/).length
+    : 0;
 
   return (
-    <div className="flex flex-col gap-5 pb-36 lg:pb-6">
+    <div className="flex flex-col gap-5 pb-40 lg:pb-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex flex-col gap-2">
           <Link
             href="/"
-            className="text-sm text-muted-foreground hover:text-foreground"
+            className="nav-link w-fit text-sm text-muted-foreground"
           >
             חזרה לכל התרחישים
           </Link>
@@ -341,7 +404,10 @@ export function PracticeSession({
           <div className="flex flex-wrap gap-1.5">
             <Badge variant="secondary">{doctorTypeLabel(scenario.doctorType)}</Badge>
             <Badge variant="outline">{styleLabel(persona.style)}</Badge>
-            <Badge variant="outline">{statusLabel}</Badge>
+            <Badge variant="outline">
+              {genderLabel(persona.gender)} · {ageBandLabel(persona.ageBand)}
+            </Badge>
+            <Badge className="animate-status-glow">{statusLabel}</Badge>
           </div>
         </div>
         {status !== "ended" ? (
@@ -349,19 +415,30 @@ export function PracticeSession({
             type="button"
             variant="outline"
             onClick={endSession}
-            className="self-start"
+            className="hover-lift self-start"
           >
             <PhoneOff className="size-3.5" />
             סיום שיחה
           </Button>
         ) : (
-          <Link href="/" className={cn(buttonVariants(), "self-start")}>
+          <Link href="/" className={cn(buttonVariants(), "hover-lift self-start")}>
             תרחיש אחר
           </Link>
         )}
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_18rem]">
+      <VoiceStage
+        persona={persona}
+        status={status}
+        autoListen={autoListen}
+        onToggleAuto={() => {
+          const next = !autoListen;
+          setAutoListen(next);
+          autoListenRef.current = next;
+        }}
+      />
+
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <div className="flex flex-col gap-4">
           {error ? (
             <Alert
@@ -393,32 +470,47 @@ export function PracticeSession({
 
           {status !== "ended" ? (
             <div className="flex flex-col gap-3">
-              <SampleLines
-                lines={scenario.sampleLines}
-                disabled={busy}
-                onSample={(line) => void submitManagerText(line)}
-              />
-              <div className="hidden rounded-lg border border-border bg-white p-4 lg:block">
+              <div className="hidden rounded-xl border border-border bg-white p-4 lg:block">
                 <Controls
                   status={status}
                   busy={busy}
                   support={support}
                   showKeyboard={showKeyboard}
                   typed={typed}
+                  autoListen={autoListen}
                   onStartListening={() => void startListening()}
                   onStopListening={stopListening}
                   onToggleKeyboard={() => setShowKeyboard((value) => !value)}
                   onTypedChange={setTyped}
                   onSubmitTyped={() => void submitManagerText(typed)}
-                  onStopSpeech={stopSpeaking}
+                  onStopSpeech={() => {
+                    stopSpeaking();
+                    if (autoListenRef.current) queueListen();
+                    else setStatus("ready");
+                  }}
                 />
               </div>
+              {showKeyboard ? (
+                <SampleLines
+                  lines={scenario.sampleLines}
+                  disabled={busy}
+                  onSample={(line) => void submitManagerText(line)}
+                />
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShowKeyboard(true)}
+                  className="text-start text-sm text-muted-foreground underline-offset-4 transition-colors hover:text-primary hover:underline"
+                >
+                  אין מיקרופון? פתחו הקלדה או משפט אימון מוכן
+                </button>
+              )}
             </div>
           ) : null}
         </div>
 
         <aside className="flex flex-col gap-4">
-          <Card className="bg-white ring-border shadow-none">
+          <Card className="lift-card bg-white ring-border shadow-none">
             <CardHeader className="border-b border-border">
               <div className="flex items-center gap-3">
                 <span className="flex size-12 items-center justify-center rounded-full bg-secondary text-base font-semibold text-primary">
@@ -429,6 +521,7 @@ export function PracticeSession({
                   <p className="text-xs text-muted-foreground">
                     {persona.clinic} · {persona.yearsInClinic} שנות ותק
                   </p>
+                  <p className="text-xs text-primary">{voicePortrait(persona)}</p>
                 </div>
               </div>
             </CardHeader>
@@ -437,14 +530,25 @@ export function PracticeSession({
               <p className="text-muted-foreground">{scenario.tension}</p>
             </CardContent>
           </Card>
-          <Card className="bg-white ring-border shadow-none">
+          <VoiceAnalysis
+            scenario={scenario}
+            liveText={status === "listening" ? interim : lastManagerText}
+            totals={signals}
+            phase={phase}
+            listening={status === "listening"}
+            wordCount={wordCount}
+          />
+          <Card className="lift-card bg-white ring-border shadow-none">
             <CardHeader>
               <CardTitle className="text-base font-semibold">מה לנסות בשיחה</CardTitle>
             </CardHeader>
             <CardContent>
               <ul className="flex flex-col gap-2 text-sm leading-6">
                 {scenario.managerGoals.map((goal) => (
-                  <li key={goal} className="rounded-md border border-border bg-secondary/50 px-3 py-2">
+                  <li
+                    key={goal}
+                    className="rounded-md border border-border bg-secondary/50 px-3 py-2 transition-colors hover:border-primary/30 hover:bg-secondary"
+                  >
                     {goal}
                   </li>
                 ))}
@@ -457,22 +561,104 @@ export function PracticeSession({
       {status === "ended" && debrief ? <DebriefPanel notes={debrief} /> : null}
 
       {status !== "ended" ? (
-        <div className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-white p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] lg:hidden">
+        <div className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-white/95 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-sm lg:hidden">
           <Controls
             status={status}
             busy={busy}
             support={support}
             showKeyboard={showKeyboard}
             typed={typed}
+            autoListen={autoListen}
             onStartListening={() => void startListening()}
             onStopListening={stopListening}
             onToggleKeyboard={() => setShowKeyboard((value) => !value)}
             onTypedChange={setTyped}
             onSubmitTyped={() => void submitManagerText(typed)}
-            onStopSpeech={stopSpeaking}
+            onStopSpeech={() => {
+              stopSpeaking();
+              if (autoListenRef.current) queueListen();
+              else setStatus("ready");
+            }}
           />
         </div>
       ) : null}
+    </div>
+  );
+}
+
+function VoiceStage({
+  persona,
+  status,
+  autoListen,
+  onToggleAuto,
+}: {
+  persona: Persona;
+  status: SessionStatus;
+  autoListen: boolean;
+  onToggleAuto: () => void;
+}) {
+  const speaking = status === "speaking";
+  const listening = status === "listening";
+
+  return (
+    <div className="overflow-hidden rounded-2xl border border-border bg-hero-panel p-5 text-white shadow-sm">
+      <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-4">
+          <div
+            className={cn(
+              "relative flex size-20 items-center justify-center rounded-full bg-white/15 text-xl font-semibold",
+              speaking && "avatar-speaking",
+              listening && "avatar-listening",
+            )}
+          >
+            {persona.portraitInitials}
+            {speaking || listening ? (
+              <span className="pulse-ring" aria-hidden />
+            ) : null}
+          </div>
+          <div>
+            <p className="text-sm text-white/70">
+              {speaking
+                ? "שומעים את הרופא"
+                : listening
+                  ? "תורכם לדבר"
+                  : "שיחה קולית"}
+            </p>
+            <p className="text-lg font-semibold">{persona.name}</p>
+            <p className="text-xs text-white/70">{voicePortrait(persona)}</p>
+          </div>
+        </div>
+        <Waveform active={speaking || listening} listening={listening} />
+        <button
+          type="button"
+          onClick={onToggleAuto}
+          className="rounded-full border border-white/25 bg-white/10 px-3 py-1.5 text-xs font-medium transition-all hover:bg-white/20"
+        >
+          {autoListen ? "שיחה קולית רציפה · פועלת" : "שיחה קולית רציפה · כבויה"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function Waveform({ active, listening }: { active: boolean; listening: boolean }) {
+  return (
+    <div
+      className="flex h-12 items-end gap-1"
+      aria-hidden
+      data-active={active}
+    >
+      {Array.from({ length: 9 }).map((_, index) => (
+        <span
+          key={index}
+          className={cn(
+            "wave-bar w-1.5 rounded-full",
+            listening ? "bg-sky-200" : "bg-white",
+            active ? "wave-bar-on" : "h-2 opacity-50",
+          )}
+          style={{ animationDelay: `${index * 90}ms` }}
+        />
+      ))}
     </div>
   );
 }
@@ -487,8 +673,8 @@ function SampleLines({
   onSample: (line: string) => void;
 }) {
   return (
-    <div className="flex flex-col gap-2 rounded-lg border border-border bg-white p-4">
-      <p className="text-sm font-medium text-primary">אין מיקרופון? שלחו משפט אימון מוכן</p>
+    <div className="flex flex-col gap-2 rounded-xl border border-border bg-white p-4">
+      <p className="text-sm font-medium text-primary">משפטי אימון מוכנים</p>
       <div className="flex flex-col gap-2">
         {lines.map((line) => (
           <button
@@ -499,7 +685,7 @@ function SampleLines({
             onClick={() => onSample(line)}
             className={cn(
               buttonVariants({ variant: "secondary" }),
-              "h-auto min-h-11 w-full scroll-mb-40 justify-start whitespace-normal py-2 text-start leading-6",
+              "hover-lift h-auto min-h-11 w-full scroll-mb-40 justify-start whitespace-normal py-2 text-start leading-6",
             )}
           >
             {line}
@@ -516,6 +702,7 @@ function Controls({
   support,
   showKeyboard,
   typed,
+  autoListen,
   onStartListening,
   onStopListening,
   onToggleKeyboard,
@@ -528,6 +715,7 @@ function Controls({
   support: { recognition: boolean; synthesis: boolean; hebrewVoice: boolean };
   showKeyboard: boolean;
   typed: string;
+  autoListen: boolean;
   onStartListening: () => void;
   onStopListening: () => void;
   onToggleKeyboard: () => void;
@@ -556,11 +744,11 @@ function Controls({
             type="button"
             size="lg"
             onClick={onStartListening}
-            disabled={busy || !support.recognition}
-            className="min-h-11 flex-1 sm:flex-none"
+            disabled={busy || !support.recognition || status === "speaking"}
+            className="mic-cta min-h-11 flex-1 sm:flex-none"
           >
             <Mic className="size-4" />
-            דיבור בעברית
+            {autoListen ? "דיבור עכשיו" : "דיבור בעברית"}
           </Button>
         )}
         <Button
@@ -568,7 +756,7 @@ function Controls({
           size="lg"
           variant="outline"
           onClick={onToggleKeyboard}
-          className="min-h-11"
+          className="hover-lift min-h-11"
         >
           <Keyboard className="size-4" />
           הקלדה
@@ -586,8 +774,17 @@ function Controls({
           </Button>
         ) : (
           <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-            <Volume2 className="size-3.5" />
-            {support.hebrewVoice ? "קול עברי זמין" : "בלי קול עברי — התמליל פעיל"}
+            {support.hebrewVoice ? (
+              <>
+                <Volume2 className="size-3.5" />
+                קול הרופא פעיל
+              </>
+            ) : (
+              <>
+                <AudioLines className="size-3.5" />
+                בלי קול עברי — התמליל פעיל
+              </>
+            )}
           </span>
         )}
       </div>
@@ -606,7 +803,7 @@ function Controls({
             type="button"
             onClick={onSubmitTyped}
             disabled={busy || typed.trim().length === 0}
-            className="min-h-11 self-start"
+            className="hover-lift min-h-11 self-start"
           >
             שליחת תור
           </Button>

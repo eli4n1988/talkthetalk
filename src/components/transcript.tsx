@@ -44,7 +44,7 @@ export function Transcript({
             <div
               key={turn.id}
               className={cn(
-                "max-w-[92%] rounded-lg px-3.5 py-2.5 text-sm leading-6 sm:max-w-[80%]",
+                "bubble-in max-w-[92%] rounded-lg px-3.5 py-2.5 text-sm leading-6 sm:max-w-[80%]",
                 isDoctor
                   ? "self-start bg-primary text-primary-foreground"
                   : "self-end bg-secondary text-secondary-foreground",

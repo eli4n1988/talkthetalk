@@ -1,4 +1,10 @@
-import type { DoctorType, Persona, Scenario } from "@/lib/types";
+import type {
+  CoachingSignal,
+  DialoguePhase,
+  DoctorType,
+  Persona,
+  Scenario,
+} from "@/lib/types";
 
 export const PERSONAS: Persona[] = [
   {
@@ -8,11 +14,12 @@ export const PERSONAS: Persona[] = [
     doctorType: "family",
     style: "stubborn-veteran",
     gender: "male",
+    ageBand: "veteran",
     clinic: "מרפאת רמת גן",
     portraitInitials: "ימ",
     stance:
       "ותיק עקשן. מאמין שרפואה טובה דורשת זמן, מזלזל במדדים, ומגן על הסמכות הקלינית שלו.",
-    voice: { rate: 0.92, pitch: 0.85 },
+    voice: { rate: 0.78, pitch: 0.68 },
   },
   {
     id: "shapira",
@@ -21,11 +28,12 @@ export const PERSONAS: Persona[] = [
     doctorType: "pediatrician",
     style: "stubborn-veteran",
     gender: "female",
+    ageBand: "veteran",
     clinic: "מרפאת ילדים חולון",
     portraitInitials: "תש",
     stance:
       "רופאת ילדים ותיקה וחדה. בטוחה בניסיון שלה, מתגוננת מול ״פרוטוקולים מהמטה״, ומאשימה את לחץ ההורים.",
-    voice: { rate: 0.96, pitch: 1.05 },
+    voice: { rate: 0.86, pitch: 0.9 },
   },
   {
     id: "cohen",
@@ -34,11 +42,12 @@ export const PERSONAS: Persona[] = [
     doctorType: "family",
     style: "defensive-overwhelmed",
     gender: "male",
+    ageBand: "early-career",
     clinic: "מרפאת פתח תקווה",
     portraitInitials: "אכ",
     stance:
       "מוצף והגנתי. מרגיש שכל שיחת ניהול היא האשמה נוספת על יום שכבר נשבר.",
-    voice: { rate: 1.08, pitch: 1.0 },
+    voice: { rate: 1.14, pitch: 1.08 },
   },
   {
     id: "ben-david",
@@ -47,11 +56,12 @@ export const PERSONAS: Persona[] = [
     doctorType: "pediatrician",
     style: "defensive-overwhelmed",
     gender: "female",
+    ageBand: "early-career",
     clinic: "מרפאת ילדים כפר סבא",
     portraitInitials: "נב",
     stance:
       "שחוקה מתלונות הורים. מפרשת משוב כהתקפה אישית, ואז מתקשה לשמוע את הבקשה המקצועית.",
-    voice: { rate: 1.06, pitch: 1.12 },
+    voice: { rate: 1.18, pitch: 1.26 },
   },
 ];
 
@@ -478,3 +488,34 @@ export function doctorTypeLabel(type: DoctorType): string {
 export function styleLabel(style: Persona["style"]): string {
   return style === "stubborn-veteran" ? "ותיק/ה עקשן/ית" : "הגנתי/ת ומוצף/ת";
 }
+
+export function ageBandLabel(band: Persona["ageBand"]): string {
+  return band === "veteran" ? "ותיק/ה" : "צעיר/ה בקריירה";
+}
+
+export function genderLabel(gender: Persona["gender"]): string {
+  return gender === "male" ? "גבר" : "אישה";
+}
+
+export function voicePortrait(persona: Persona): string {
+  const age = persona.ageBand === "veteran" ? "קול נמוך ואיטי" : "קול מהיר ובהיר";
+  const gender = persona.gender === "male" ? "גברי" : "נשי";
+  return `${gender} · ${age}`;
+}
+
+export const SEED_SCENARIO_IDS = new Set(SCENARIOS.map((scenario) => scenario.id));
+
+export const SIGNAL_LABELS: Record<CoachingSignal, string> = {
+  empathy: "אמפתיה",
+  data: "נתון קליני",
+  partnership: "שותפות",
+  command: "הוראה",
+  criticism: "ביקורת",
+};
+
+export const PHASE_LABELS: Record<DialoguePhase, string> = {
+  resist: "התנגדות",
+  deflect: "הטיה",
+  challenge: "אתגר",
+  soften: "ריכוך",
+};

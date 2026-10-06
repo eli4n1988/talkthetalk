@@ -1,5 +1,5 @@
-import { generateDoctorReplyByScenarioId } from "@/lib/dialogue";
-import type { DialogueState } from "@/lib/types";
+import { generateDoctorReply, generateDoctorReplyByScenarioId } from "@/lib/dialogue";
+import type { DialogueState, Scenario } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -7,15 +7,18 @@ type RequestBody = {
   scenarioId: string;
   userText: string;
   state: DialogueState;
+  scenario?: Scenario;
 };
 
 export async function POST(request: Request) {
   const body = (await request.json()) as RequestBody;
-  const local = generateDoctorReplyByScenarioId(
-    body.scenarioId,
-    body.state,
-    body.userText,
-  );
+  const local = body.scenario
+    ? generateDoctorReply(body.scenario, body.state, body.userText)
+    : generateDoctorReplyByScenarioId(
+        body.scenarioId,
+        body.state,
+        body.userText,
+      );
 
   if (!local) {
     return Response.json({ error: "תרחיש לא נמצא" }, { status: 404 });

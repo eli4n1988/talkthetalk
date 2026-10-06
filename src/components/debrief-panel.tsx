@@ -4,7 +4,7 @@ import type { DebriefNotes } from "@/lib/types";
 
 export function DebriefPanel({ notes }: { notes: DebriefNotes }) {
   return (
-    <Card className="bg-white ring-border shadow-none">
+    <Card className="lift-card bg-white ring-border shadow-none">
       <CardHeader className="border-b border-border">
         <div className="flex flex-wrap items-center gap-2">
           <CardTitle className="text-lg font-semibold">סיכום אחרי השיחה</CardTitle>
@@ -50,7 +50,7 @@ function NotesColumn({
           {items.map((item) => (
             <li
               key={item}
-              className="rounded-md border border-border bg-secondary/50 px-3.5 py-2.5 text-sm leading-6"
+              className="rounded-md border border-border bg-secondary/50 px-3.5 py-2.5 text-sm leading-6 transition-colors hover:border-primary/25 hover:bg-secondary"
             >
               {item}
             </li>

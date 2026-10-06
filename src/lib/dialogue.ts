@@ -1,4 +1,4 @@
-import { getScenario } from "@/lib/content";
+import { getPersona, getScenario } from "@/lib/content";
 import type {
   CoachingSignal,
   DialoguePhase,
@@ -171,7 +171,10 @@ function pickReply(
   phase: DialoguePhase,
   usedIndexes: number[],
 ): string {
-  const pool = scenario.replies[phase];
+  const pool = scenario.replies[phase] ?? [];
+  if (pool.length === 0) {
+    return "אני צריך רגע. תמשיכו — אני מקשיב.";
+  }
   const unused = pool
     .map((line, index) => ({ line, index }))
     .filter((entry) => !usedIndexes.includes(entry.index));
@@ -180,10 +183,10 @@ function pickReply(
 }
 
 function latinPushback(scenario: Scenario): string {
-  if (scenario.personaId === "shapira" || scenario.personaId === "ben-david") {
-    return "דברי אליי בעברית. זו המרפאה שלי, וכך מתנהלת כאן שיחה.";
-  }
-  return "דבר אליי בעברית. זו המרפאה שלי, וכך מתנהלת כאן שיחה.";
+  const female = getPersona(scenario.personaId)?.gender === "female";
+  return female
+    ? "דברי אליי בעברית. זו המרפאה שלי, וכך מתנהלת כאן שיחה."
+    : "דבר אליי בעברית. זו המרפאה שלי, וכך מתנהלת כאן שיחה.";
 }
 
 export function normalizeHebrew(text: string): string {
