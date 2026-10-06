@@ -1,12 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import {
   Baby,
   Search,
   Stethoscope,
-  Volume2,
   WandSparkles,
 } from "lucide-react";
 import { useCatalog } from "@/components/catalog-provider";
@@ -29,8 +28,6 @@ import {
   styleLabel,
 } from "@/lib/content";
 import { isSeedScenario } from "@/lib/catalog";
-import { generateOpening } from "@/lib/dialogue";
-import { speakHebrew, stopSpeaking } from "@/lib/speech";
 import type { AgeBand, DoctorType, VoiceGender } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -44,11 +41,6 @@ export function ScenarioPicker() {
   const [gender, setGender] = useState<GenderFilter>("all");
   const [age, setAge] = useState<AgeFilter>("all");
   const [query, setQuery] = useState("");
-  const [previewId, setPreviewId] = useState<string | null>(null);
-
-  useEffect(() => {
-    return () => stopSpeaking();
-  }, []);
 
   const visible = useMemo(() => {
     const needle = query.trim();
@@ -68,22 +60,6 @@ export function ScenarioPicker() {
       return haystack.includes(needle);
     });
   }, [age, filter, gender, getPersona, query, scenarios]);
-
-  const playOpening = async (scenarioId: string) => {
-    const scenario = scenarios.find((item) => item.id === scenarioId);
-    const persona = scenario ? getPersona(scenario.personaId) : undefined;
-    if (!scenario || !persona) return;
-    stopSpeaking();
-    setPreviewId(scenarioId);
-    await speakHebrew({
-      text: generateOpening(scenario).reply,
-      rate: persona.voice.rate,
-      pitch: persona.voice.pitch,
-      gender: persona.gender,
-      ageBand: persona.ageBand,
-    });
-    setPreviewId((current) => (current === scenarioId ? null : current));
-  };
 
   return (
     <div className="flex flex-col gap-8">
@@ -237,7 +213,7 @@ export function ScenarioPicker() {
                     {scenario.clinicNote}
                   </p>
                 </CardContent>
-                <CardFooter className="flex flex-col gap-2 border-border bg-secondary/40 sm:flex-row sm:items-center">
+                <CardFooter className="border-border bg-secondary/40">
                   <Link
                     href={`/practice/${scenario.id}`}
                     className={cn(
@@ -247,16 +223,6 @@ export function ScenarioPicker() {
                   >
                     שיחה קולית עם {persona.name.split(" ").slice(-1)}
                   </Link>
-                  <Button
-                    type="button"
-                    size="lg"
-                    variant="outline"
-                    className="hover-lift w-full sm:w-auto"
-                    onClick={() => void playOpening(scenario.id)}
-                  >
-                    <Volume2 className="size-4" />
-                    {previewId === scenario.id ? "הרופא מדבר…" : "שמעו את הרופא"}
-                  </Button>
                 </CardFooter>
               </Card>
             );
