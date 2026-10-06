@@ -123,6 +123,7 @@ export function PracticeSession({
   const listeningRef = useRef(false);
   const endedRef = useRef(false);
   const pendingFinalRef = useRef("");
+  const interimRef = useRef("");
   const turnCounter = useRef(0);
   const statusRef = useRef<SessionStatus>("thinking");
   const turnsRef = useRef<TranscriptTurn[]>([]);
@@ -267,6 +268,7 @@ export function PracticeSession({
     stopSpeaking();
     stopListening();
     pendingFinalRef.current = "";
+    interimRef.current = "";
     const recognition = new Recognition();
     recognition.lang = HEBREW_SPEECH_LANG;
     recognition.continuous = false;
@@ -289,6 +291,7 @@ export function PracticeSession({
       if (finalText) {
         pendingFinalRef.current = `${pendingFinalRef.current} ${finalText}`.trim();
       }
+      interimRef.current = interimText;
       setInterim(interimText || pendingFinalRef.current);
     };
     recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
@@ -299,7 +302,10 @@ export function PracticeSession({
       }
     };
     recognition.onend = () => {
-      const finalText = pendingFinalRef.current.trim();
+      const finalText =
+        `${pendingFinalRef.current} ${interimRef.current}`.trim();
+      pendingFinalRef.current = "";
+      interimRef.current = "";
       listeningRef.current = false;
       recognitionRef.current = null;
       setInterim("");
@@ -416,7 +422,7 @@ export function PracticeSession({
   }, [status]);
 
   const busy = status === "thinking";
-  const talkDisabled = busy || status === "ended" || !support.recognition;
+  const talkDisabled = busy || status === "ended";
   const wordCount = lastManagerText.trim()
     ? lastManagerText.trim().split(/\s+/).length
     : 0;
