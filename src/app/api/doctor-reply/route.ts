@@ -33,9 +33,7 @@ export async function POST(request: Request) {
   const scenario = body.scenario ?? getScenario(body.scenarioId);
   const kind = body.kind === "opening" ? "opening" : "turn";
   const history = body.history ?? [];
-  const manager = parseManagerProfile(
-    body.manager ? JSON.stringify(body.manager) : null,
-  );
+  const manager = parseManagerProfile(body.manager);
   const persona =
     body.persona ??
     (scenario ? getPersona(scenario.personaId) : undefined);

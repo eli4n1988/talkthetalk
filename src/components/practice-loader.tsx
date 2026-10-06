@@ -49,7 +49,10 @@ export function PracticeLoader({ scenarioId }: { scenarioId: string }) {
 
   if (profile && persona.gender !== profile.gender) {
     return (
-      <div className="flex flex-1 flex-col items-center justify-center gap-4 py-24 text-center">
+      <div
+        className="flex flex-1 flex-col items-center justify-center gap-4 py-24 text-center"
+        data-testid="gender-mismatch"
+      >
         <h1 className="text-2xl font-semibold">השיחה לא תואמת למין שנבחר</h1>
         <p className="max-w-md text-muted-foreground">
           בכניסה נבחר מין {profile.gender === "female" ? "אישה" : "גבר"}, ולכן
@@ -63,11 +66,23 @@ export function PracticeLoader({ scenarioId }: { scenarioId: string }) {
     );
   }
 
+  if (!profile) {
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center gap-3 py-24 text-muted-foreground">
+        <p>חסרים פרטי כניסה. חזרו למסך הבית.</p>
+        <Link href="/" className={cn(buttonVariants())}>
+          למסך הבית
+        </Link>
+      </div>
+    );
+  }
+
   return (
     <PracticeSession
       key={`${scenario.id}-${scenario.openingLine.slice(0, 24)}`}
       scenario={scenario}
       persona={persona}
+      manager={profile}
     />
   );
 }

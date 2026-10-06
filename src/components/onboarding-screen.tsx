@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { useProfile } from "@/components/profile-provider";
 import { Button } from "@/components/ui/button";
 import {
@@ -44,7 +44,7 @@ export function OnboardingScreen({
   const genderError = submitted && !gender;
   const districtError = submitted && !district;
 
-  function handleSubmit(event: React.FormEvent) {
+  function handleSubmit(event: FormEvent) {
     event.preventDefault();
     setSubmitted(true);
     if (trimmed.length < 2 || !gender || !district) return;

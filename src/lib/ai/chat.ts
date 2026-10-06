@@ -12,7 +12,7 @@ import {
   type ModelReply,
 } from "@/lib/ai/prompt";
 import type { Persona, Scenario, SocialBeat, TranscriptTurn } from "@/lib/types";
-import type { ManagerProfile } from "@/lib/profile";
+import { managerYou, type ManagerProfile } from "@/lib/profile";
 
 export async function generateAiDoctorReply(args: {
   scenario: Scenario;
@@ -35,12 +35,15 @@ export async function generateAiDoctorReply(args: {
     beat: args.beat,
     manager: args.manager,
   });
+  const youHint = args.manager
+    ? ` פנה ב-${managerYou(args.manager.gender)} בלבד.`
+    : "";
   const userKickoff =
     args.kind === "opening"
       ? args.scenario.firstMeeting
-        ? "הרופא נכנס לחדר לפגישה ראשונה. אמור רק משפט פתיחה של היכרות."
-        : "הרופא נכנס לחדר לפגישה מוכרת. אמור רק נימוסין קצרים, בלי הנושא הקליני."
-      : "הגב עכשיו לדברי המנהל האחרונים, לפי הכללים.";
+        ? `הרופא נכנס לחדר לפגישה ראשונה. אמור רק משפט פתיחה של היכרות.${youHint}`
+        : `הרופא נכנס לחדר לפגישה מוכרת. אמור רק נימוסין קצרים, בלי הנושא הקליני.${youHint}`
+      : `הגב עכשיו לדברי המנהל האחרונים, לפי הכללים.${youHint}`;
 
   for (const provider of order) {
     try {

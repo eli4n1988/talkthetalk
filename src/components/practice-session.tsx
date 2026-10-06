@@ -14,7 +14,6 @@ import {
 } from "lucide-react";
 import { DebriefPanel } from "@/components/debrief-panel";
 import { DoctorPortrait } from "@/components/doctor-portrait";
-import { useProfile } from "@/components/profile-provider";
 import { Transcript } from "@/components/transcript";
 import { VoiceAnalysis } from "@/components/voice-analysis";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -55,6 +54,7 @@ import type {
   TranscriptTurn,
   VoiceProvider,
 } from "@/lib/types";
+import type { ManagerProfile } from "@/lib/profile";
 import { cn } from "@/lib/utils";
 
 type SessionStatus = "ready" | "listening" | "thinking" | "speaking" | "ended";
@@ -89,11 +89,12 @@ const ERROR_COPY: Record<MicErrorCode, { title: string; body: string }> = {
 export function PracticeSession({
   scenario,
   persona,
+  manager,
 }: {
   scenario: Scenario;
   persona: Persona;
+  manager: ManagerProfile;
 }) {
-  const { profile } = useProfile();
   const [status, setStatus] = useState<SessionStatus>("thinking");
   const [turns, setTurns] = useState<TranscriptTurn[]>([]);
   const [interim, setInterim] = useState("");
@@ -188,7 +189,7 @@ export function PracticeSession({
       setStatus("thinking");
 
       const snapshot = stateRef.current;
-      const local = generateDoctorReply(scenario, snapshot, trimmed, profile);
+      const local = generateDoctorReply(scenario, snapshot, trimmed, manager);
       let result: DoctorTurnResult = local;
       const history: TranscriptTurn[] = [
         ...turnsRef.current,
@@ -207,7 +208,7 @@ export function PracticeSession({
             persona,
             history,
             kind: "turn",
-            manager: profile,
+            manager,
           }),
         });
         if (response.ok) {
@@ -240,7 +241,7 @@ export function PracticeSession({
       ]);
       await spoken;
     },
-    [nextId, persona, profile, scenario, speakDoctor],
+    [nextId, persona, manager, scenario, speakDoctor],
   );
 
   const stopListening = useCallback(() => {
@@ -360,7 +361,7 @@ export function PracticeSession({
 
     void (async () => {
       onVoices();
-      const local = generateOpening(scenario, profile);
+      const local = generateOpening(scenario, manager);
       let result = local;
       try {
         const response = await fetch("/api/doctor-reply", {
@@ -372,7 +373,7 @@ export function PracticeSession({
             persona,
             history: [],
             kind: "opening",
-            manager: profile,
+            manager,
           }),
         });
         if (response.ok) {
@@ -556,7 +557,7 @@ export function PracticeSession({
                   lines={
                     beat === "issue"
                       ? scenario.sampleLines
-                      : rapportSamples(scenario.firstMeeting, profile?.gender)
+                      : rapportSamples(scenario.firstMeeting, manager.gender)
                   }
                   disabled={busy}
                   onSample={(line) => void submitManagerText(line)}

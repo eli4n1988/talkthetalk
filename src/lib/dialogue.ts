@@ -1,6 +1,9 @@
 import { getPersona, getScenario } from "@/lib/content";
 import {
+  managerCome,
+  managerSpeak,
   managerStanding,
+  managerTell,
   managerYou,
   type ManagerProfile,
 } from "@/lib/profile";
@@ -221,9 +224,10 @@ function buildLocalReply(args: {
   }
 
   if (args.previousBeat !== "issue") {
+    const come = managerCome(args.manager?.gender ?? args.persona?.gender ?? "male");
     const bridge = echo
-      ? `שמעתי אותך על ${echo}. בוא נעבור למה שביקשת לראות אותי.`
-      : "טוב. בוא נדבר על מה שביקשת.";
+      ? `שמעתי אותך על ${echo}. ${come} נעבור למה שביקשת לראות אותי.`
+      : `טוב. ${come} נדבר על מה שביקשת.`;
     return `${bridge} ${args.scenario.openingLine}`;
   }
 
@@ -236,7 +240,7 @@ function nicetyOpening(
   manager?: ManagerProfile | null,
 ): string {
   const you = managerYou(manager?.gender ?? "male");
-  const tell = manager?.gender === "female" ? "תגידי" : "תגיד";
+  const tell = managerTell(manager?.gender ?? "male");
   if (persona.gender === "female" && persona.ageBand === "veteran") {
     return `שלום, מה נשמע? רגע נדיר בלי ילד בוכה מאחורי הדלת. איך ${you}?`;
   }
@@ -355,12 +359,8 @@ function latinPushback(
   manager?: ManagerProfile | null,
   persona?: Persona,
 ): string {
-  const female =
-    manager?.gender === "female" ||
-    (!manager && persona?.gender === "female");
-  return female
-    ? "דברי אליי בעברית. זו המרפאה שלי, וכך מתנהלת כאן שיחה."
-    : "דבר אליי בעברית. זו המרפאה שלי, וכך מתנהלת כאן שיחה.";
+  const speak = managerSpeak(manager?.gender ?? persona?.gender ?? "male");
+  return `${speak} אליי בעברית. זו המרפאה שלי, וכך מתנהלת כאן שיחה.`;
 }
 
 export function normalizeHebrew(text: string): string {

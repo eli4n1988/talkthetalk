@@ -42,6 +42,9 @@ export function buildDoctorSystemPrompt(args: {
     persona.stance,
     "זה סימולטור אימון למנהלים רפואיים במכבי שמנהלים רופאים. דבר/י עברית מדוברת, 1–3 משפטים, כמו בחדר אמיתי. אל תסביר שאתה מודל.",
     managerLine,
+    manager
+      ? `חובה לפנות למנהל/ת ב-${you} לאורך כל השיחה. אסור להחליף ל-${manager.gender === "female" ? "אתה" : "את"}.`
+      : "שמור על לשון פנייה עקבית לאורך השיחה.",
     meeting,
     `הנושא האמיתי של השיחה (רק אחרי נימוסין/היכרות): ${scenario.title}. ${scenario.tension}`,
     `נתון מהמרפאה: ${scenario.clinicNote}`,
