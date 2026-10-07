@@ -6,7 +6,12 @@ export const maxDuration = 60;
 const MAX_BYTES = 6 * 1024 * 1024;
 
 export async function POST(request: Request) {
-  const form = await request.formData();
+  let form: FormData;
+  try {
+    form = await request.formData();
+  } catch {
+    return Response.json({ error: "חסרה הקלטה" }, { status: 400 });
+  }
   const file = form.get("audio");
   if (!(file instanceof File) || file.size < 80) {
     return Response.json({ error: "חסרה הקלטה" }, { status: 400 });
