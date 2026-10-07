@@ -137,6 +137,13 @@
   body {
     @apply bg-background text-foreground antialiased overflow-x-clip;
     min-height: 100dvh;
+    -webkit-overflow-scrolling: touch;
+  }
+  button,
+  a,
+  [role="button"] {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: rgb(8 63 146 / 12%);
   }
   h1,
   h2,

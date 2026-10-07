@@ -35,14 +35,20 @@ import {
   generateDoctorReply,
   generateOpening,
 } from "@/lib/dialogue";
+import { needsPlaybackGesture } from "@/lib/browser";
 import {
   getSpeechRecognitionConstructor,
   getSpeechSupport,
   HEBREW_SPEECH_LANG,
   mapRecognitionError,
   requestMicAccess,
+  shouldUseServerTranscription,
   speakDoctorLine,
+  startAudioRecording,
+  stopAudioRecording,
   stopSpeaking,
+  transcribeRecording,
+  unlockAudioPlayback,
   type MicErrorCode,
 } from "@/lib/speech";
 import type {
@@ -65,8 +71,8 @@ const ERROR_COPY: Record<MicErrorCode, { title: string; body: string }> = {
     body: "אפשרו מיקרופון בהגדרות הדפדפן, או המשיכו באימון באמצעות הקלדה בעברית.",
   },
   "no-recognition": {
-    title: "אין זיהוי דיבור בעברית בדפדפן זה",
-    body: "Chrome או Edge תומכים בדרך כלל. בינתיים אפשר להקליד תור בעברית בתיבה למטה.",
+    title: "אין זיהוי דיבור בדפדפן זה",
+    body: "בספארי באייפון מדברים בלחיצה — ההקלטה מתומללת בשרת. אם זה נכשל, אפשר להקליד בעברית.",
   },
   "no-hebrew-voice": {
     title: "לא נמצא קול עברי להקראה",
@@ -82,7 +88,11 @@ const ERROR_COPY: Record<MicErrorCode, { title: string; body: string }> = {
   },
   "not-supported": {
     title: "הדפדפן לא תומך בדיבור",
-    body: "אפשר להשלים את האימון בהקלדה. לחוויית קול מלאה השתמשו ב-Chrome.",
+    body: "אפשר להשלים את האימון בהקלדה. ספארי באייפון נתמך בהקלטה; Chrome ו-Edge תומכים גם בזיהוי חי.",
+  },
+  "transcribe-failed": {
+    title: "לא הצלחנו לתמלל את מה שנאמר",
+    body: "נסו לדבר שוב קרוב למיקרופון, או כתבו את המשפט בעברית בתיבה למטה.",
   },
 };
 
@@ -118,6 +128,7 @@ export function PracticeSession({
     () => createDialogueState(scenario.firstMeeting).beat,
   );
   const [voiceSource, setVoiceSource] = useState<VoiceProvider>("browser");
+  const [awaitingStart, setAwaitingStart] = useState(false);
 
   const stateRef = useRef<DialogueState>(
     createDialogueState(scenario.firstMeeting),
@@ -130,6 +141,8 @@ export function PracticeSession({
   const turnCounter = useRef(0);
   const statusRef = useRef<SessionStatus>("thinking");
   const turnsRef = useRef<TranscriptTurn[]>([]);
+  const pendingOpeningRef = useRef<string | null>(null);
+  const usingRecorderRef = useRef(false);
 
   const nextId = useCallback((role: TranscriptTurn["role"]) => {
     turnCounter.current += 1;
@@ -139,6 +152,7 @@ export function PracticeSession({
   const speakDoctor = useCallback(
     async (text: string) => {
       setStatus((current) => (current === "ended" ? current : "speaking"));
+      await unlockAudioPlayback();
       const result = await speakDoctorLine({
         text,
         rate: persona.voice.rate,
@@ -177,6 +191,7 @@ export function PracticeSession({
         setError("no-speech");
         return;
       }
+      await unlockAudioPlayback();
       stopSpeaking();
       setError(null);
       setInterim("");
@@ -246,14 +261,62 @@ export function PracticeSession({
 
   const stopListening = useCallback(() => {
     listeningRef.current = false;
+    if (usingRecorderRef.current) {
+      usingRecorderRef.current = false;
+      setInterim("");
+      void (async () => {
+        setStatus("thinking");
+        const blob = await stopAudioRecording();
+        if (endedRef.current) return;
+        if (!blob) {
+          setError("no-speech");
+          setStatus("ready");
+          return;
+        }
+        const text = await transcribeRecording(blob);
+        if (endedRef.current) return;
+        if (!text) {
+          setError("transcribe-failed");
+          setShowKeyboard(true);
+          setStatus("ready");
+          return;
+        }
+        void submitManagerText(text);
+      })();
+      return;
+    }
     recognitionRef.current?.stop();
     recognitionRef.current = null;
     setInterim("");
     if (statusRef.current === "listening") setStatus("ready");
-  }, []);
+  }, [submitManagerText]);
 
   const startListening = useCallback(async () => {
     if (endedRef.current || statusRef.current === "thinking") return;
+    await unlockAudioPlayback();
+    if (pendingOpeningRef.current) {
+      const opening = pendingOpeningRef.current;
+      pendingOpeningRef.current = null;
+      setAwaitingStart(false);
+      await speakDoctor(opening);
+      if (endedRef.current) return;
+    }
+    if (shouldUseServerTranscription()) {
+      stopSpeaking();
+      const recordError = await startAudioRecording();
+      if (recordError) {
+        setError(recordError);
+        setShowKeyboard(true);
+        setStatus("ready");
+        return;
+      }
+      usingRecorderRef.current = true;
+      listeningRef.current = true;
+      setStatus("listening");
+      setError(null);
+      setInterim("מקליטים… לחצו «סיימתי לדבר» כשתסיימו.");
+      return;
+    }
     const Recognition = getSpeechRecognitionConstructor();
     if (!Recognition) {
       setError("no-recognition");
@@ -270,7 +333,8 @@ export function PracticeSession({
     }
 
     stopSpeaking();
-    stopListening();
+    recognitionRef.current?.stop();
+    recognitionRef.current = null;
     pendingFinalRef.current = "";
     interimRef.current = "";
     const recognition = new Recognition();
@@ -329,7 +393,7 @@ export function PracticeSession({
       setError("no-recognition");
       setStatus("ready");
     }
-  }, [stopListening, submitManagerText]);
+  }, [speakDoctor, submitManagerText]);
 
   useEffect(() => {
     turnsRef.current = turns;
@@ -342,12 +406,24 @@ export function PracticeSession({
   const endSession = useCallback(() => {
     endedRef.current = true;
     listeningRef.current = false;
+    usingRecorderRef.current = false;
+    pendingOpeningRef.current = null;
     recognitionRef.current?.abort();
     recognitionRef.current = null;
+    void stopAudioRecording();
     stopSpeaking();
     setStatus("ended");
     setDebrief(buildDebrief(scenario, stateRef.current));
   }, [scenario]);
+
+  const beginConversation = useCallback(async () => {
+    if (endedRef.current) return;
+    await unlockAudioPlayback();
+    const opening = pendingOpeningRef.current;
+    pendingOpeningRef.current = null;
+    setAwaitingStart(false);
+    if (opening) await speakDoctor(opening);
+  }, [speakDoctor]);
 
   useEffect(() => {
     const onVoices = () => {
@@ -388,7 +464,6 @@ export function PracticeSession({
       setSignals(result.state.signals);
       setPhase(result.state.phase);
       setBeat(result.state.beat);
-      const spoken = speakDoctor(result.reply);
       setTurns([
         {
           id: nextId("doctor"),
@@ -397,13 +472,21 @@ export function PracticeSession({
           phase: result.state.phase,
         },
       ]);
-      await spoken;
+      if (needsPlaybackGesture()) {
+        pendingOpeningRef.current = result.reply;
+        setAwaitingStart(true);
+        setStatus("ready");
+        return;
+      }
+      await speakDoctor(result.reply);
     })();
 
     window.speechSynthesis?.addEventListener("voiceschanged", onVoices);
 
     return () => {
       recognitionRef.current?.abort();
+      usingRecorderRef.current = false;
+      void stopAudioRecording();
       stopSpeaking();
       window.speechSynthesis?.removeEventListener("voiceschanged", onVoices);
     };
@@ -427,7 +510,7 @@ export function PracticeSession({
   }, [status]);
 
   const busy = status === "thinking";
-  const talkDisabled = busy || status === "ended";
+  const talkDisabled = busy || status === "ended" || awaitingStart;
   const wordCount = lastManagerText.trim()
     ? lastManagerText.trim().split(/\s+/).length
     : 0;
@@ -486,6 +569,8 @@ export function PracticeSession({
         persona={persona}
         status={status}
         talkDisabled={talkDisabled}
+        awaitingStart={awaitingStart}
+        onBeginConversation={() => void beginConversation()}
         onStartListening={() => void startListening()}
         onStopListening={stopListening}
       />
@@ -559,7 +644,7 @@ export function PracticeSession({
                       ? scenario.sampleLines
                       : rapportSamples(scenario.firstMeeting, manager.gender)
                   }
-                  disabled={busy}
+                  disabled={busy || awaitingStart}
                   onSample={(line) => void submitManagerText(line)}
                 />
               ) : (
@@ -614,7 +699,7 @@ export function PracticeSession({
 
       {status === "ended" && debrief ? <DebriefPanel notes={debrief} /> : null}
 
-      {status !== "ended" ? (
+      {status !== "ended" && !awaitingStart ? (
         <div className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-white/95 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-sm lg:hidden">
           <Controls
             status={status}
@@ -641,12 +726,16 @@ function VoiceStage({
   persona,
   status,
   talkDisabled,
+  awaitingStart,
+  onBeginConversation,
   onStartListening,
   onStopListening,
 }: {
   persona: Persona;
   status: SessionStatus;
   talkDisabled: boolean;
+  awaitingStart: boolean;
+  onBeginConversation: () => void;
   onStartListening: () => void;
   onStopListening: () => void;
 }) {
@@ -655,6 +744,25 @@ function VoiceStage({
 
   return (
     <div className="overflow-hidden rounded-2xl border border-border bg-hero-panel p-4 text-white shadow-sm sm:p-5">
+      {awaitingStart ? (
+        <div className="flex flex-col items-center gap-3 py-4 text-center">
+          <DoctorPortrait persona={persona} sizeClass="size-24" />
+          <p className="text-lg font-semibold">{persona.name}</p>
+          <p className="max-w-md text-sm leading-6 text-white/80">
+            בספארי ובאייפון צריך הקשה אחת כדי לשמוע את הרופא. אחר כך מדברים
+            בלחיצה — ההקלטה מתומללת אוטומטית.
+          </p>
+          <Button
+            type="button"
+            size="lg"
+            onClick={onBeginConversation}
+            className="min-h-12 bg-white px-6 text-base font-semibold text-primary hover:bg-white/90"
+          >
+            <Volume2 className="size-4" />
+            היכנסו לשיחה
+          </Button>
+        </div>
+      ) : (
       <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex w-full min-w-0 items-center gap-4 sm:w-auto">
           <div
@@ -696,6 +804,7 @@ function VoiceStage({
           </p>
         </div>
       </div>
+      )}
     </div>
   );
 }

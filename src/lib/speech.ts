@@ -1,10 +1,13 @@
+import { isAppleTouchDevice } from "@/lib/browser";
+
 export type MicErrorCode =
   | "permission-denied"
   | "no-recognition"
   | "no-hebrew-voice"
   | "no-speech"
   | "audio-capture"
-  | "not-supported";
+  | "not-supported"
+  | "transcribe-failed";
 
 export type SpeechSupport = {
   recognition: boolean;
@@ -21,8 +24,22 @@ export type SpeakArgs = {
 };
 
 const HEBREW_LANG = "he-IL";
+const SILENT_WAV =
+  "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA";
 let speakGeneration = 0;
 let currentAudio: HTMLAudioElement | null = null;
+let sharedAudio: HTMLAudioElement | null = null;
+let audioUnlocked = false;
+let audioContext: AudioContext | null = null;
+
+type LiveRecording = {
+  stream: MediaStream;
+  recorder: MediaRecorder;
+  chunks: BlobPart[];
+  mime: string;
+};
+
+let liveRecording: LiveRecording | null = null;
 
 export function getSpeechRecognitionConstructor(): (new () => SpeechRecognition) | null {
   if (typeof window === "undefined") return null;
@@ -33,10 +50,83 @@ export function getSpeechSupport(): SpeechSupport {
   if (typeof window === "undefined") {
     return { recognition: false, synthesis: false, hebrewVoice: false };
   }
-  const recognition = Boolean(getSpeechRecognitionConstructor());
+  const recognition =
+    Boolean(getSpeechRecognitionConstructor()) || canRecordAudio();
   const synthesis = "speechSynthesis" in window;
   const hebrewVoice = synthesis && Boolean(findHebrewVoice());
   return { recognition, synthesis, hebrewVoice };
+}
+
+export function shouldUseServerTranscription(): boolean {
+  if (typeof window === "undefined") return false;
+  if (isAppleTouchDevice()) return canRecordAudio();
+  return !getSpeechRecognitionConstructor() && canRecordAudio();
+}
+
+export function canRecordAudio(): boolean {
+  return (
+    typeof window !== "undefined" &&
+    typeof MediaRecorder !== "undefined" &&
+    Boolean(navigator.mediaDevices?.getUserMedia)
+  );
+}
+
+export function pickRecorderMimeType(): string {
+  if (typeof MediaRecorder === "undefined") return "";
+  const candidates = [
+    "audio/mp4",
+    "audio/mp4;codecs=mp4a.40.2",
+    "audio/aac",
+    "audio/mpeg",
+    "audio/webm;codecs=opus",
+    "audio/webm",
+  ];
+  return candidates.find((type) => MediaRecorder.isTypeSupported(type)) ?? "";
+}
+
+function ensureSharedAudio(): HTMLAudioElement | null {
+  if (typeof window === "undefined") return null;
+  if (sharedAudio) return sharedAudio;
+  const audio = new Audio();
+  audio.preload = "auto";
+  audio.setAttribute("playsinline", "true");
+  audio.setAttribute("webkit-playsinline", "true");
+  sharedAudio = audio;
+  return audio;
+}
+
+export async function unlockAudioPlayback(): Promise<void> {
+  if (typeof window === "undefined" || audioUnlocked) return;
+  const Ctx = window.AudioContext ?? window.webkitAudioContext;
+  if (Ctx) {
+    try {
+      audioContext = audioContext ?? new Ctx();
+      if (audioContext.state === "suspended") {
+        await audioContext.resume();
+      }
+      const buffer = audioContext.createBuffer(1, 1, 22050);
+      const source = audioContext.createBufferSource();
+      source.buffer = buffer;
+      source.connect(audioContext.destination);
+      source.start(0);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  const audio = ensureSharedAudio();
+  if (audio) {
+    try {
+      audio.src = SILENT_WAV;
+      await audio.play();
+      audio.pause();
+      audio.removeAttribute("src");
+      audio.load();
+    } catch {
+      /* first tap still counts as an unlock attempt */
+    }
+  }
+  audioUnlocked = true;
 }
 
 export function findHebrewVoice(
@@ -175,16 +265,19 @@ export function speakHebrew(
       return;
     }
 
-    const keepAlive = window.setInterval(() => {
-      if (speakGeneration !== myGen) return;
-      if (synth.speaking) {
-        try {
-          synth.resume();
-        } catch {
-          /* Chrome sometimes pauses mid-utterance. */
-        }
-      }
-    }, 4000);
+    // Chrome can pause mid-utterance; resume() on iOS Safari restarts/kills speech.
+    const keepAlive = isAppleTouchDevice()
+      ? 0
+      : window.setInterval(() => {
+          if (speakGeneration !== myGen) return;
+          if (synth.speaking) {
+            try {
+              synth.resume();
+            } catch {
+              /* Chrome sometimes pauses mid-utterance. */
+            }
+          }
+        }, 4000);
 
     const run = async () => {
       await waitForVoices();
@@ -231,7 +324,8 @@ function speakChunk(args: {
     }
     const synth = window.speechSynthesis;
     const utterance = new SpeechSynthesisUtterance(args.text);
-    utterance.lang = HEBREW_LANG;
+    const voiceLang = args.voice?.lang ?? "";
+    utterance.lang = /^(he|iw)/i.test(voiceLang) ? voiceLang : HEBREW_LANG;
     utterance.rate = args.rate;
     utterance.pitch = args.pitch;
     utterance.volume = 1;
@@ -295,8 +389,14 @@ export function playNeuralAudio(blob: Blob, generation?: number): Promise<boolea
       /* ignore */
     }
     const url = URL.createObjectURL(blob);
-    const audio = new Audio(url);
+    const audio = ensureSharedAudio() ?? new Audio();
+    audio.setAttribute("playsinline", "true");
+    audio.setAttribute("webkit-playsinline", "true");
+    audio.src = url;
     currentAudio = audio;
+    if (audioContext?.state === "suspended") {
+      void audioContext.resume();
+    }
     let settled = false;
     const finish = (value: boolean) => {
       if (settled) return;
@@ -396,15 +496,103 @@ export async function requestMicAccess(): Promise<MicErrorCode | null> {
     stream.getTracks().forEach((track) => track.stop());
     return null;
   } catch (error) {
-    const name = error instanceof DOMException ? error.name : "";
-    if (name === "NotAllowedError" || name === "PermissionDeniedError") {
-      return "permission-denied";
-    }
-    if (name === "NotFoundError" || name === "DevicesNotFoundError") {
-      return "audio-capture";
-    }
-    return "not-supported";
+    return mapGetUserMediaError(error);
   }
+}
+
+function mapGetUserMediaError(error: unknown): MicErrorCode {
+  const name = error instanceof DOMException ? error.name : "";
+  if (name === "NotAllowedError" || name === "PermissionDeniedError") {
+    return "permission-denied";
+  }
+  if (name === "NotFoundError" || name === "DevicesNotFoundError") {
+    return "audio-capture";
+  }
+  return "not-supported";
+}
+
+export async function startAudioRecording(): Promise<MicErrorCode | null> {
+  if (!canRecordAudio()) return "not-supported";
+  await stopAudioRecording();
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const mime = pickRecorderMimeType();
+    const recorder = mime
+      ? new MediaRecorder(stream, { mimeType: mime })
+      : new MediaRecorder(stream);
+    const chunks: BlobPart[] = [];
+    recorder.ondataavailable = (event) => {
+      if (event.data && event.data.size > 0) chunks.push(event.data);
+    };
+    liveRecording = {
+      stream,
+      recorder,
+      chunks,
+      mime: recorder.mimeType || mime || "audio/mp4",
+    };
+    recorder.start();
+    return null;
+  } catch (error) {
+    return mapGetUserMediaError(error);
+  }
+}
+
+export function stopAudioRecording(): Promise<Blob | null> {
+  return new Promise((resolve) => {
+    const session = liveRecording;
+    liveRecording = null;
+    if (!session) {
+      resolve(null);
+      return;
+    }
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      session.stream.getTracks().forEach((track) => track.stop());
+      const blob = new Blob(session.chunks, {
+        type: session.mime || "audio/mp4",
+      });
+      resolve(blob.size > 80 ? blob : null);
+    };
+    session.recorder.onstop = finish;
+    if (session.recorder.state === "inactive") {
+      finish();
+      return;
+    }
+    try {
+      session.recorder.stop();
+    } catch {
+      finish();
+    }
+    window.setTimeout(finish, 1500);
+  });
+}
+
+export async function transcribeRecording(blob: Blob): Promise<string | null> {
+  const mime = blob.type || "audio/mp4";
+  const form = new FormData();
+  form.append("audio", blob, filenameForMime(mime));
+  form.append("mime", mime);
+  try {
+    const response = await fetch("/api/transcribe", {
+      method: "POST",
+      body: form,
+    });
+    if (!response.ok) return null;
+    const data = (await response.json()) as { text?: string };
+    return data.text?.trim() || null;
+  } catch {
+    return null;
+  }
+}
+
+function filenameForMime(mime: string): string {
+  if (mime.includes("webm")) return "speech.webm";
+  if (mime.includes("wav")) return "speech.wav";
+  if (mime.includes("mpeg") || mime.includes("mp3")) return "speech.mp3";
+  if (mime.includes("ogg")) return "speech.ogg";
+  return "speech.m4a";
 }
 
 export function mapRecognitionError(error: string): MicErrorCode {

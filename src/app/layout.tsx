@@ -21,6 +21,14 @@ export const metadata: Metadata = {
   title: "TalktheTalk | אימון שיחות עם רופאים | מכבי",
   description:
     "סימולטור שיחות בעברית למנהלים רפואיים במכבי שמנהלים רופאים ומתרגלים שיחות על בעיות במרפאה.",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "TalktheTalk",
+  },
+  formatDetection: {
+    telephone: false,
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
