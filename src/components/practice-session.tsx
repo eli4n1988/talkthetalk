@@ -293,7 +293,15 @@ export function PracticeSession({
 
   const startListening = useCallback(async () => {
     if (endedRef.current || statusRef.current === "thinking") return;
+    const pageY = typeof window === "undefined" ? 0 : window.scrollY;
+    const keepPage = () => {
+      if (typeof window === "undefined") return;
+      if (Math.abs(window.scrollY - pageY) > 2) {
+        window.scrollTo({ top: pageY, left: 0, behavior: "auto" });
+      }
+    };
     await unlockAudioPlayback();
+    keepPage();
     if (pendingOpeningRef.current) {
       const opening = pendingOpeningRef.current;
       pendingOpeningRef.current = null;
@@ -315,6 +323,8 @@ export function PracticeSession({
       setStatus("listening");
       setError(null);
       setInterim("מקליטים… לחצו «סיימתי לדבר» כשתסיימו.");
+      requestAnimationFrame(keepPage);
+      window.setTimeout(keepPage, 80);
       return;
     }
     const Recognition = getSpeechRecognitionConstructor();
@@ -347,6 +357,8 @@ export function PracticeSession({
       listeningRef.current = true;
       setStatus("listening");
       setError(null);
+      requestAnimationFrame(keepPage);
+      window.setTimeout(keepPage, 80);
     };
     recognition.onresult = (event: SpeechRecognitionEvent) => {
       let interimText = "";
@@ -525,7 +537,7 @@ export function PracticeSession({
   }, []);
 
   return (
-    <div className="flex min-w-0 flex-col gap-5 pb-40 lg:pb-6">
+    <div className="flex min-w-0 flex-col gap-5 pb-40 lg:pb-6" style={{ overflowAnchor: "none" }}>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex flex-col gap-2">
           <Link
@@ -575,6 +587,36 @@ export function PracticeSession({
         onStopListening={stopListening}
       />
 
+      {error ? (
+        <Alert
+          className="text-start"
+          variant={error === "no-hebrew-voice" ? "default" : "destructive"}
+        >
+          {error === "no-hebrew-voice" ? (
+            <VolumeX className="size-4" />
+          ) : (
+            <MicOff className="size-4" />
+          )}
+          <AlertTitle>{ERROR_COPY[error].title}</AlertTitle>
+          <AlertDescription>{ERROR_COPY[error].body}</AlertDescription>
+        </Alert>
+      ) : null}
+
+      <Transcript
+        turns={turns}
+        interim={status === "listening" ? interim : undefined}
+        doctorName={persona.name}
+      />
+
+      {status === "thinking" ? (
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Loader2 className="size-4 animate-spin" />
+          {turns.length === 0
+            ? "הרופא נכנס לחדר ומתחיל בנימוסין או בהיכרות…"
+            : "הרופא מנסח תשובה בעברית…"}
+        </div>
+      ) : null}
+
       <Card className="mx-auto w-full bg-white ring-border shadow-none">
         <CardContent className="px-4 py-5 text-center sm:px-10">
           <p className="text-base leading-7">{scenario.tension}</p>
@@ -588,36 +630,6 @@ export function PracticeSession({
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <div className="flex flex-col gap-4">
-          {error ? (
-            <Alert
-              className="text-start"
-              variant={error === "no-hebrew-voice" ? "default" : "destructive"}
-            >
-              {error === "no-hebrew-voice" ? (
-                <VolumeX className="size-4" />
-              ) : (
-                <MicOff className="size-4" />
-              )}
-              <AlertTitle>{ERROR_COPY[error].title}</AlertTitle>
-              <AlertDescription>{ERROR_COPY[error].body}</AlertDescription>
-            </Alert>
-          ) : null}
-
-          <Transcript
-            turns={turns}
-            interim={status === "listening" ? interim : undefined}
-            doctorName={persona.name}
-          />
-
-          {status === "thinking" ? (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Loader2 className="size-4 animate-spin" />
-              {turns.length === 0
-                ? "הרופא נכנס לחדר ומתחיל בנימוסין או בהיכרות…"
-                : "הרופא מנסח תשובה בעברית…"}
-            </div>
-          ) : null}
-
           {status !== "ended" ? (
             <div className="flex flex-col gap-3">
               <div className="hidden rounded-xl border border-border bg-white p-4 lg:block">
@@ -763,21 +775,21 @@ function VoiceStage({
           </Button>
         </div>
       ) : (
-      <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex w-full min-w-0 items-center gap-4 sm:w-auto">
+      <div className="flex flex-col items-center gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+        <div className="flex w-full min-w-0 items-center gap-3 sm:w-auto sm:gap-4">
           <div
             className={cn(
-              "relative size-24 shrink-0 rounded-full",
+              "relative size-16 shrink-0 rounded-full sm:size-24",
               speaking && "avatar-speaking",
               listening && "avatar-listening",
             )}
           >
-            <DoctorPortrait persona={persona} sizeClass="size-24" />
+            <DoctorPortrait persona={persona} sizeClass="size-16 sm:size-24" />
             {speaking || listening ? (
               <span className="pulse-ring" aria-hidden />
             ) : null}
           </div>
-          <div>
+          <div className="min-w-0">
             <p className="text-sm text-white/70">
               {speaking
                 ? "שומעים את הרופא"
@@ -789,7 +801,7 @@ function VoiceStage({
           </div>
         </div>
         <Waveform active={speaking || listening} listening={listening} />
-        <div className="flex w-full max-w-xs flex-col items-center gap-2 sm:w-auto sm:items-end">
+        <div className="hidden w-full max-w-xs flex-col items-center gap-2 lg:flex lg:w-auto lg:items-end">
           <TalkButton
             listening={listening}
             disabled={talkDisabled}
@@ -877,12 +889,17 @@ function TalkButton({
   onStop: () => void;
   prominent?: boolean;
 }) {
+  const keepPageStill = (event: { preventDefault: () => void }) => {
+    event.preventDefault();
+  };
+
   if (listening) {
     return (
       <Button
         type="button"
         size="lg"
         variant="destructive"
+        onMouseDown={keepPageStill}
         onClick={onStop}
         data-testid="talk-button"
         className={cn(
@@ -901,6 +918,7 @@ function TalkButton({
     <Button
       type="button"
       size="lg"
+      onMouseDown={keepPageStill}
       onClick={onStart}
       disabled={disabled}
       data-testid="talk-button"

@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import type { TranscriptTurn } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -14,15 +13,20 @@ export function Transcript({
   interim?: string;
   doctorName: string;
 }) {
-  const endRef = useRef<HTMLDivElement>(null);
+  const viewportRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+    viewport.scrollTo({
+      top: viewport.scrollHeight,
+      behavior: "auto",
+    });
   }, [turns, interim]);
 
   if (turns.length === 0 && !interim) {
     return (
-      <div className="flex min-h-56 flex-1 items-center justify-center rounded-lg border border-dashed border-border bg-white px-6 py-12 text-center">
+      <div className="flex min-h-40 flex-1 items-center justify-center rounded-lg border border-dashed border-border bg-white px-6 py-8 text-center sm:min-h-56 sm:py-12">
         <p className="max-w-sm text-sm leading-6 text-muted-foreground">
           התמליל יופיע כאן. לחצו «לחצו כדי לדבר» כשמוכנים, או כתבו תור בעברית.
         </p>
@@ -31,7 +35,11 @@ export function Transcript({
   }
 
   return (
-    <ScrollArea className="h-[min(20rem,42vh)] rounded-lg border border-border bg-white">
+    <div
+      ref={viewportRef}
+      className="h-[min(28rem,calc(100dvh-18rem))] overflow-y-auto overscroll-contain rounded-lg border border-border bg-white lg:h-[min(22rem,42vh)]"
+      style={{ overflowAnchor: "none" }}
+    >
       <div
         className="flex flex-col gap-3 p-5"
         aria-live="polite"
@@ -62,8 +70,7 @@ export function Transcript({
             <p>{interim}</p>
           </div>
         ) : null}
-        <div ref={endRef} />
       </div>
-    </ScrollArea>
+    </div>
   );
 }
