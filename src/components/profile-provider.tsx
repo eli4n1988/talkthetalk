@@ -15,6 +15,11 @@ import {
   serializeManagerProfile,
   type ManagerProfile,
 } from "@/lib/profile";
+import {
+  readLocalStorage,
+  removeLocalStorage,
+  writeLocalStorage,
+} from "@/lib/storage";
 
 type ProfileContextValue = {
   ready: boolean;
@@ -30,9 +35,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    const next = parseManagerProfile(
-      window.localStorage.getItem(PROFILE_STORAGE_KEY),
-    );
+    const next = parseManagerProfile(readLocalStorage(PROFILE_STORAGE_KEY));
     queueMicrotask(() => {
       setProfile(next);
       setReady(true);
@@ -41,15 +44,12 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
 
   const saveProfile = useCallback((next: ManagerProfile) => {
     setProfile(next);
-    window.localStorage.setItem(
-      PROFILE_STORAGE_KEY,
-      serializeManagerProfile(next),
-    );
+    writeLocalStorage(PROFILE_STORAGE_KEY, serializeManagerProfile(next));
   }, []);
 
   const clearProfile = useCallback(() => {
     setProfile(null);
-    window.localStorage.removeItem(PROFILE_STORAGE_KEY);
+    removeLocalStorage(PROFILE_STORAGE_KEY);
   }, []);
 
   const value = useMemo(

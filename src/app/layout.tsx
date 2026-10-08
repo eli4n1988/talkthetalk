@@ -33,8 +33,8 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="he" dir="rtl" suppressHydrationWarning className={`${heebo.variable} h-full antialiased`}>
-      <body className="flex min-h-full flex-col bg-background">
+    <html lang="he" dir="rtl" suppressHydrationWarning className={`${heebo.variable} antialiased`}>
+      <body className="flex min-h-dvh flex-col bg-background">
         <Providers>
           <AppHeader />
           <main className="mx-auto flex w-full max-w-6xl min-w-0 flex-1 flex-col px-4 py-5 sm:px-8 sm:py-10">

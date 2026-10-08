@@ -20,6 +20,11 @@ import {
   type CatalogPayload,
 } from "@/lib/catalog";
 import type { Persona, Scenario } from "@/lib/types";
+import {
+  readLocalStorage,
+  removeLocalStorage,
+  writeLocalStorage,
+} from "@/lib/storage";
 
 type CatalogContextValue = {
   ready: boolean;
@@ -36,12 +41,12 @@ const CatalogContext = createContext<CatalogContextValue | null>(null);
 
 export function CatalogProvider({ children }: { children: ReactNode }) {
   const [payload, setPayload] = useState<CatalogPayload>(emptyCatalogPayload);
-  const [ready, setReady] = useState(false);
+  const [ready, setReady] = useState(true);
 
   useEffect(() => {
     // Load device-local overrides after hydration so SSR markup stays stable.
     const next =
-      parseCatalogPayload(window.localStorage.getItem(CATALOG_STORAGE_KEY)) ??
+      parseCatalogPayload(readLocalStorage(CATALOG_STORAGE_KEY)) ??
       emptyCatalogPayload();
     queueMicrotask(() => {
       setPayload(next);
@@ -51,7 +56,7 @@ export function CatalogProvider({ children }: { children: ReactNode }) {
 
   const persist = useCallback((next: CatalogPayload) => {
     setPayload(next);
-    window.localStorage.setItem(CATALOG_STORAGE_KEY, JSON.stringify(next));
+    writeLocalStorage(CATALOG_STORAGE_KEY, JSON.stringify(next));
   }, []);
 
   const scenarios = useMemo(() => mergeCatalog(payload), [payload]);
@@ -71,7 +76,7 @@ export function CatalogProvider({ children }: { children: ReactNode }) {
   );
 
   const resetCatalog = useCallback(() => {
-    window.localStorage.removeItem(CATALOG_STORAGE_KEY);
+    removeLocalStorage(CATALOG_STORAGE_KEY);
     setPayload(emptyCatalogPayload());
   }, []);
 

@@ -8,7 +8,7 @@ export function AppHeader() {
   const showNav = ready && Boolean(profile);
 
   return (
-    <header className="sticky top-0 z-30 border-b border-border bg-white/90 pt-[env(safe-area-inset-top)] backdrop-blur-md">
+    <header className="sticky top-0 z-30 border-b border-border bg-white pt-[env(safe-area-inset-top)]">
       <div className="h-1 w-full bg-header-bar" />
       <div className="mx-auto grid w-full max-w-6xl grid-cols-1 items-center justify-items-center gap-1.5 px-4 py-2.5 sm:grid-cols-[1fr_auto_1fr] sm:gap-4 sm:px-8 sm:py-4">
         <Link
